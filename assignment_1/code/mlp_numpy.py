@@ -38,14 +38,22 @@ class MLP(object):
 
     self.layers = []
 
-    self.layers.append(LinearModule(n_inputs, n_hidden[0])
+    # add the first layer, it takes n_inputs and outputs the number for the first linear layer
+    self.layers.append(LinearModule(n_inputs, n_hidden[0]))
 
+    # add the relu activation for first layer
+    self.layers.append(ReLUModule())
 
+    # for each of the elements up until the first-to-last, add a linear layer with relu activation
     for i in range(len(n_hidden)-1):
-      self.layers.append(LinearModule(n_hidden[i], n_hidden[i+1])
-      self.layers.append(ReLUModule())
+          # here, input is output from previous
+          self.layers.append(LinearModule(n_hidden[i], n_hidden[i+1]))
+          self.layers.append(ReLUModule())
 
+    # finally, we want the final layer to output the number of classes
     self.layers.append(LinearModule(n_hidden[-1], n_classes))
+
+    # and the get the softmax
     self.layers.append(SoftMaxModule)
     
 
