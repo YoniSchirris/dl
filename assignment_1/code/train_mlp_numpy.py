@@ -45,9 +45,20 @@ def accuracy(predictions, targets):
 
   ########################
   # PUT YOUR CODE HERE  #
-  #######################
-  raise NotImplementedError
-  ########################
+
+  batch_size = np.shape(predictions)[0]
+  
+  max_value_of_prediction_per_image = np.max(predictions, 1)
+
+  predictions[predictions < max_value_of_prediction_per_image] = 0
+  predictions[predictions == max_value_of_prediction_per_image] = 1
+
+  # note to self: might have to check for duplicate predictions now
+  
+  correct_predictions = predictions*targets
+  number_of_correct_predictions = np.sum(correct_predictions)
+  accuracy = number_of_correct_predictions / batch_size
+
   # END OF YOUR CODE    #
   #######################
 
@@ -75,9 +86,50 @@ def train():
 
   ########################
   # PUT YOUR CODE HERE  #
-  #######################
-  raise NotImplementedError
-  ########################
+
+  # get test data to initialize the model with
+  cifar10 = cifar10_utils.get_cifar10(DATA_DIR_DEFAULT)
+
+  x_test, y_test = cifar10['test'].images, cifar10['test'].labels
+
+  input_size = np.shape(x_test)[1] * np.shape(x_test)[2] * np.shape(x_test)[3]
+  class_size = np.shape(y_test)[1]
+
+  # seems like it is still given as a string. So ensuring that it is a list of ints now
+
+  model = MLP(n_inputs=input_size, n_hidden=dnn_hidden_units, n_classes=class_size)
+
+  # vector_forward = np.vectorize(model.forward)
+  # vector_backward = np.vectorize(model.backward)
+
+  calculate_loss = CrossEntropyModule()
+  # vector_loss_forward = np.vectorize(calculate_loss.forward)
+  # vector_loss_backward = np.vectorize(calculate_loss.backward)
+
+  for step in range(MAX_STEPS_DEFAULT):
+        x, y = cifar10['train'].next_batch(BATCH_SIZE_DEFAULT)
+        x = x.reshape([np.shape(x)[0], input_size])
+        
+        # forward_out = vector_forward(x)
+        forward_out = model.forward(x)
+
+        #loss = vector_loss_forward(forward_out, y)
+        loss_gradient = calculate_loss.backward(forward_out, y)
+
+        model.backward(loss_gradient)
+
+        # evaluate every EVAL_FREQ_DEFAULT steps
+        if step % EVAL_FREQ_DEFAULT == 0:
+              # get the values for test input
+              test_forward = model.forward(x_test)
+              # print the accuracy
+              print(accuracy(test_forward, y_test))
+
+
+        
+
+
+
   # END OF YOUR CODE    #
   #######################
 

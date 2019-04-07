@@ -54,7 +54,7 @@ class MLP(object):
     self.layers.append(LinearModule(n_hidden[-1], n_classes))
 
     # and the get the softmax
-    self.layers.append(SoftMaxModule)
+    self.layers.append(SoftMaxModule())
     
 
     # END OF YOUR CODE    #
@@ -78,7 +78,9 @@ class MLP(object):
     # PUT YOUR CODE HERE  #
 
     for layer in self.layers:
-          x = layer.forward(x)
+          print(layer)
+          print(x)
+          x = layer.forward(x=x)
 
     out = x
     # NUMBER_OF_LINEAR_LAYERS = len(self.linears)
@@ -114,9 +116,10 @@ class MLP(object):
     
     ########################
     # PUT YOUR CODE HERE  #
-    
-    for layer in self.layers:
-          x = self.backward(x)
+    dx = dout
+
+    for layer in self.layers[::-1]:
+          dx = layer.backward(dx)
 
     # END OF YOUR CODE    #
     #######################

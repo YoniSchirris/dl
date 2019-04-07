@@ -28,8 +28,8 @@ class LinearModule(object):
     sigma = 0.0001
     
     # weights are R ^ out * in
-    weights = np.random.normal(mu, sigma, [out_features, in_features])
-    weights_grad = np.zeros([out_features, in_features])
+    weights = np.random.normal(mu, sigma, [in_features, out_features])
+    weights_grad = np.zeros([in_features, out_features])
 
     # biases are R ^ out
     biases = np.zeros(out_features)
@@ -64,8 +64,11 @@ class LinearModule(object):
 
     # W [out * in ] * x [in] + b [ out ]
 
-    out = np.dot(self.params['weights'], x) + self.params['bias']
 
+    out = np.dot(x, self.params['weight'])
+    out += self.params['bias']
+
+    self.x = x
     # END OF YOUR CODE    #
     #######################
 
@@ -87,9 +90,13 @@ class LinearModule(object):
 
     ########################
     # PUT YOUR CODE HERE  #
-    #######################
-    raise NotImplementedError
-    ########################
+    
+    W = self.params['weight']
+    dx = np.dot(dout, W.T)
+    # dx = np.einsum('k ,ij ->',dout, W)
+    dLdb = dout
+    dLdW = (np.dot(self.x, dx.T))
+
     # END OF YOUR CODE    #
     #######################
     
@@ -117,9 +124,13 @@ class ReLUModule(object):
     ########################
     # PUT YOUR CODE HERE  #
     
-    x[x<0]=0
+    # x[x<0]=0
+    #  out = x
 
-    out = x
+    self.I_tilde = (x>0)
+
+    out = x * self.I_tilde
+
 
     # END OF YOUR CODE    #
     #######################
@@ -141,9 +152,12 @@ class ReLUModule(object):
 
     ########################
     # PUT YOUR CODE HERE  #
-    #######################
-    raise NotImplementedError
-    ########################
+
+    I_tilde = self.I_tilde
+
+    dx = dout * I_tilde
+
+
     # END OF YOUR CODE    #
     #######################    
 
@@ -172,12 +186,9 @@ class SoftMaxModule(object):
     # PUT YOUR CODE HERE  #
 
     # as taken from https://timvieira.github.io/blog/post/2014/02/11/exp-normalize-trick/
-    def exp_normalize(x):
-        b = x.max()
-        y = np.exp(x - b)
-        return y / y.sum()
-
-    out = exp_normalize(x)
+    y = np.exp(x - np.max(x))
+    out = y / np.sum(y)
+    self.out = out
     
     # END OF YOUR CODE    #
     #######################
@@ -199,9 +210,15 @@ class SoftMaxModule(object):
 
     ########################
     # PUT YOUR CODE HERE  #
-    #######################
-    raise NotImplementedError
-    ########################
+    xN = self.out
+
+    diag_holder = np.zeros((xN.shape[0], xN.shape[1], xN.shape[1]))
+    diag = np.arange(xN.shape[1])
+    diag_holder[:, diag, diag] = xN
+
+    dxdtilde = diag_holder - np.einsum('ij, ik -> ijk', xN, xN)
+
+    dx = np.einsum('ij, ijk -> ij', dout, dxdtilde)
     # END OF YOUR CODE    #
     #######################
 
@@ -228,7 +245,7 @@ class CrossEntropyModule(object):
     ########################
     # PUT YOUR CODE HERE  #
     
-    out = -1 * np.dot(y, np.log(x))
+    out = -1 * np.shape(np.sum(x*y, axis=1))
 
     # END OF YOUR CODE    #
     #######################
@@ -251,9 +268,9 @@ class CrossEntropyModule(object):
 
     ########################
     # PUT YOUR CODE HERE  #
-    #######################
-    raise NotImplementedError
-    ########################
+    
+    dx = -1 * np.divide(y, x)
+
     # END OF YOUR CODE    #
     #######################
 
