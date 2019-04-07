@@ -24,11 +24,20 @@ class LinearModule(object):
     """
     
     ########################
-    # PUT YOUR CODE HERE  #
+    mu = 0
+    sigma = 0.0001
+    
+    weights = np.random.normal(mu, sigma, [in_features, out_features])
+    weights_grad = np.zeros([in_features, out_features])
+
+    biases = np.zeros(in_features)
+    biases_grad = np.zeros(in_features)    
     #######################
-    self.params = {'weight': None, 'bias': None}
-    self.grads = {'weight': None, 'bias': None}
-    raise NotImplementedError
+    
+    self.params = {'weight': weights, 'bias': biases}
+    self.grads = {'weight': weights_grad, 'bias': biases_grad}
+
+    #raise NotImplementedError
     ########################
     # END OF YOUR CODE    #
     #######################
