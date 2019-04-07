@@ -27,11 +27,13 @@ class LinearModule(object):
     mu = 0
     sigma = 0.0001
     
-    weights = np.random.normal(mu, sigma, [in_features, out_features])
-    weights_grad = np.zeros([in_features, out_features])
+    # weights are R ^ out * in
+    weights = np.random.normal(mu, sigma, [out_features, in_features])
+    weights_grad = np.zeros([out_features, in_features])
 
-    biases = np.zeros(in_features)
-    biases_grad = np.zeros(in_features)    
+    # biases are R ^ out
+    biases = np.zeros(out_features)
+    biases_grad = np.zeros(out_features)    
     #######################
     
     self.params = {'weight': weights, 'bias': biases}
@@ -59,9 +61,11 @@ class LinearModule(object):
     
     ########################
     # PUT YOUR CODE HERE  #
-    #######################
-    raise NotImplementedError
-    ########################
+
+    # W [out * in ] * x [in] + b [ out ]
+
+    out = np.dot(self.params['weights'], x) + self.params['bias']
+
     # END OF YOUR CODE    #
     #######################
 
@@ -112,9 +116,11 @@ class ReLUModule(object):
 
     ########################
     # PUT YOUR CODE HERE  #
-    #######################
-    raise NotImplementedError
-    ########################
+    
+    x[x<0]=0
+
+    out = x
+
     # END OF YOUR CODE    #
     #######################
 
@@ -164,9 +170,15 @@ class SoftMaxModule(object):
 
     ########################
     # PUT YOUR CODE HERE  #
-    #######################
-    raise NotImplementedError
-    ########################
+
+    # as taken from https://timvieira.github.io/blog/post/2014/02/11/exp-normalize-trick/
+    def exp_normalize(x):
+        b = x.max()
+        y = np.exp(x - b)
+        return y / y.sum()
+
+    out = exp_normalize(x)
+    
     # END OF YOUR CODE    #
     #######################
 
@@ -215,9 +227,9 @@ class CrossEntropyModule(object):
 
     ########################
     # PUT YOUR CODE HERE  #
-    #######################
-    raise NotImplementedError
-    ########################
+    
+    out = -1 * np.dot(y, np.log(x))
+
     # END OF YOUR CODE    #
     #######################
 
