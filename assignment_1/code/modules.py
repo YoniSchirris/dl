@@ -93,9 +93,17 @@ class LinearModule(object):
     
     W = self.params['weight']
     dx = np.dot(dout, W.T)
+
     # dx = np.einsum('k ,ij ->',dout, W)
-    dLdb = dout
-    dLdW = (np.dot(self.x, dx.T))
+    dLdb = np.mean(dout, axis=0)
+
+    self.params['bias'] += dLdb
+
+    # average over the batch now
+    dLdW = np.mean((np.dot(self.x.T, dx)), axis=1)
+
+
+    
 
     # END OF YOUR CODE    #
     #######################
@@ -212,6 +220,7 @@ class SoftMaxModule(object):
     # PUT YOUR CODE HERE  #
     xN = self.out
 
+    # https://stackoverflow.com/questions/26511401/numpy-fastest-way-of-computing-diagonal-for-each-row-of-a-2d-array
     diag_holder = np.zeros((xN.shape[0], xN.shape[1], xN.shape[1]))
     diag = np.arange(xN.shape[1])
     diag_holder[:, diag, diag] = xN
