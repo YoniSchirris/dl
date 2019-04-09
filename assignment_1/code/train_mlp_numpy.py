@@ -96,6 +96,8 @@ def train():
 
   model = MLP(n_inputs=input_size, n_hidden=dnn_hidden_units, n_classes=class_size)
 
+
+
   calculate_loss = CrossEntropyModule()
 
   accuracies = []
@@ -110,9 +112,13 @@ def train():
 
         loss = calculate_loss.forward(forward_out, y)
 
-        print(loss)
+        # print(loss)
 
-        loss_gradient = calculate_loss.backward(loss, y)
+        # I GAVE IT LOOSS, NOT FORWARD OUT
+        loss_gradient = calculate_loss.backward(forward_out, y)
+
+        # print(loss)
+
 
         model.backward(loss_gradient)
 
@@ -120,6 +126,7 @@ def train():
               if hasattr(layer, 'params'):
                   #GET THE GRADIENTS
                   #UPDATE THE WEIGHTS
+
                   layer.params['weight'] = layer.params['weight'] - LEARNING_RATE_DEFAULT*layer.grads['weight']
                   layer.params['bias'] = layer.params['bias'] - LEARNING_RATE_DEFAULT*layer.grads['bias']            
 
