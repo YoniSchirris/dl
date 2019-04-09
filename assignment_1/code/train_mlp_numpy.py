@@ -87,34 +87,30 @@ def train():
   cifar10 = cifar10_utils.get_cifar10(DATA_DIR_DEFAULT)
 
   x_test, y_test = cifar10['test'].images, cifar10['test'].labels
-  
 
   input_size = np.shape(x_test)[1] * np.shape(x_test)[2] * np.shape(x_test)[3]
+
   class_size = np.shape(y_test)[1]
 
   x_test = x_test.reshape([np.shape(x_test)[0], input_size])
 
   model = MLP(n_inputs=input_size, n_hidden=dnn_hidden_units, n_classes=class_size)
 
-  # vector_forward = np.vectorize(model.forward)
-  # vector_backward = np.vectorize(model.backward)
-
   calculate_loss = CrossEntropyModule()
-  # vector_loss_forward = np.vectorize(calculate_loss.forward)
-  # vector_loss_backward = np.vectorize(calculate_loss.backward)
 
   accuracies = []
+
   for step in range(MAX_STEPS_DEFAULT):
+        
         x, y = cifar10['train'].next_batch(BATCH_SIZE_DEFAULT)
 
-        ## something is going wrong here, as it passes the wrong dimensions when going a second time
         x = x.reshape([np.shape(x)[0], input_size])
         
-        # forward_out = vector_forward(x)
-
         forward_out = model.forward(x)
 
         loss = calculate_loss.forward(forward_out, y)
+
+        print(loss)
 
         loss_gradient = calculate_loss.backward(loss, y)
 
@@ -127,24 +123,12 @@ def train():
                   layer.params['weight'] = layer.params['weight'] - LEARNING_RATE_DEFAULT*layer.grads['weight']
                   layer.params['bias'] = layer.params['bias'] - LEARNING_RATE_DEFAULT*layer.grads['bias']            
 
-        
-        
-
-
         # evaluate every EVAL_FREQ_DEFAULT steps
-        # if step % EVAL_FREQ_DEFAULT == 0:
         if step % EVAL_FREQ_DEFAULT == 0:
-              # get the values for test input
               test_forward = model.forward(x_test)
-              # print the accuracy
               print(accuracy(test_forward, y_test))
               accuracies.append(accuracy)
-
-
-        
-
-
-
+              
   # END OF YOUR CODE    #
   #######################
 

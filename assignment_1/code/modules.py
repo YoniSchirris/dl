@@ -23,7 +23,10 @@ class LinearModule(object):
     Also, initialize gradients with zeros.
     """
     
-    ########################
+    #######################
+    # YOUR CODE HERE      #
+    #######################
+
     mu = 0
     sigma = 0.0001
     
@@ -34,12 +37,10 @@ class LinearModule(object):
     # biases are R ^ out
     biases = np.zeros((out_features,1))
     biases_grad = np.zeros((1,out_features))
-    #######################
     
     self.params = {'weight': weights, 'bias': biases}
     self.grads = {'weight': weights_grad, 'bias': biases_grad}
 
-    #raise NotImplementedError
     ########################
     # END OF YOUR CODE    #
     #######################
@@ -94,7 +95,8 @@ class LinearModule(object):
     W = self.params['weight']
     dx = np.dot(dout, W)
 
-    dLdb = np.mean(dout, axis=0)
+    # or should this be np.sum? Doesn't seem to make a difference.
+    dLdb = np.sum(dout, axis=0)
     dLdb = np.reshape(dLdb, [np.shape(dLdb)[0], 1])
     self.grads['bias'] = dLdb    
 
@@ -248,7 +250,8 @@ class CrossEntropyModule(object):
     # PUT YOUR CODE HERE  #
     
     # out =np.mean-1 * np.sum(y*np.log(x), axis=1))
-    out =  np.sum(y*-1*np.log(x))
+    out =  np.mean(np.sum(y * -1 * np.log(x), axis=1 ))
+
     
     #out /= np.shape(x)[0]
     
@@ -275,7 +278,8 @@ class CrossEntropyModule(object):
     ########################
     # PUT YOUR CODE HERE  #
     
-    dx = (-1 * np.divide(y, x))
+    # dx = (-np.divide(y, x))
+    dx = (-np.divide(y, x)) / np.shape(y)[0]
 
     #dx /= np.shape(y)[0]
 
