@@ -78,9 +78,7 @@ class MLP(object):
     # PUT YOUR CODE HERE  #
 
     for layer in self.layers:
-          print(layer)
-          print(x)
-          x = layer.forward(x=x)
+          x = layer.forward(x)
 
     out = x
     # NUMBER_OF_LINEAR_LAYERS = len(self.linears)

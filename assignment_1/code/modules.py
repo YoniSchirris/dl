@@ -28,12 +28,12 @@ class LinearModule(object):
     sigma = 0.0001
     
     # weights are R ^ out * in
-    weights = np.random.normal(mu, sigma, [in_features, out_features])
-    weights_grad = np.zeros([in_features, out_features])
+    weights = np.random.normal(mu, sigma, [out_features, in_features])
+    weights_grad = np.zeros([out_features, in_features])
 
     # biases are R ^ out
-    biases = np.zeros(out_features)
-    biases_grad = np.zeros(out_features)    
+    biases = np.zeros((out_features,1))
+    biases_grad = np.zeros((1,out_features))
     #######################
     
     self.params = {'weight': weights, 'bias': biases}
@@ -65,14 +65,14 @@ class LinearModule(object):
     # W [out * in ] * x [in] + b [ out ]
 
 
-    out = np.dot(x, self.params['weight'])
+    out = np.dot(self.params['weight'], x.T)
     out += self.params['bias']
 
     self.x = x
     # END OF YOUR CODE    #
     #######################
 
-    return out
+    return out.T
 
   def backward(self, dout):
     """
@@ -92,18 +92,14 @@ class LinearModule(object):
     # PUT YOUR CODE HERE  #
     
     W = self.params['weight']
-    dx = np.dot(dout, W.T)
+    dx = np.dot(dout, W)
 
-    # dx = np.einsum('k ,ij ->',dout, W)
     dLdb = np.mean(dout, axis=0)
+    dLdb = np.reshape(dLdb, [np.shape(dLdb)[0], 1])
+    self.grads['bias'] = dLdb    
 
-    self.params['bias'] += dLdb
-
-    # average over the batch now
-    dLdW = np.mean((np.dot(self.x.T, dx)), axis=1)
-
-
-    
+    dLdW = np.dot(dout.T, self.x)
+    self.grads['weight'] = dLdW
 
     # END OF YOUR CODE    #
     #######################
@@ -131,14 +127,10 @@ class ReLUModule(object):
 
     ########################
     # PUT YOUR CODE HERE  #
-    
-    # x[x<0]=0
-    #  out = x
 
     self.I_tilde = (x>0)
 
     out = x * self.I_tilde
-
 
     # END OF YOUR CODE    #
     #######################
@@ -194,8 +186,9 @@ class SoftMaxModule(object):
     # PUT YOUR CODE HERE  #
 
     # as taken from https://timvieira.github.io/blog/post/2014/02/11/exp-normalize-trick/
-    y = np.exp(x - np.max(x))
-    out = y / np.sum(y)
+    y = np.exp((x.T-np.max(x, axis=1)).T)
+
+    out = (y.T / np.sum(y, axis=1)).T
     self.out = out
     
     # END OF YOUR CODE    #
@@ -227,7 +220,7 @@ class SoftMaxModule(object):
 
     dxdtilde = diag_holder - np.einsum('ij, ik -> ijk', xN, xN)
 
-    dx = np.einsum('ij, ijk -> ij', dout, dxdtilde)
+    dx = np.einsum('ij, ijk -> ik', dout, dxdtilde)
     # END OF YOUR CODE    #
     #######################
 
@@ -254,7 +247,11 @@ class CrossEntropyModule(object):
     ########################
     # PUT YOUR CODE HERE  #
     
-    out = -1 * np.shape(np.sum(x*y, axis=1))
+    # out =np.mean-1 * np.sum(y*np.log(x), axis=1))
+    out =  np.sum(y*-1*np.log(x))
+    
+    #out /= np.shape(x)[0]
+    
 
     # END OF YOUR CODE    #
     #######################
@@ -278,7 +275,9 @@ class CrossEntropyModule(object):
     ########################
     # PUT YOUR CODE HERE  #
     
-    dx = -1 * np.divide(y, x)
+    dx = (-1 * np.divide(y, x))
+
+    #dx /= np.shape(y)[0]
 
     # END OF YOUR CODE    #
     #######################

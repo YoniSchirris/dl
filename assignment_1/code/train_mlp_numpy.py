@@ -47,17 +47,13 @@ def accuracy(predictions, targets):
   # PUT YOUR CODE HERE  #
 
   batch_size = np.shape(predictions)[0]
-  
-  max_value_of_prediction_per_image = np.max(predictions, 1)
 
-  predictions[predictions < max_value_of_prediction_per_image] = 0
-  predictions[predictions == max_value_of_prediction_per_image] = 1
+  predictions = (predictions == predictions.max(axis=1)[:,None]).astype(int)
 
   # note to self: might have to check for duplicate predictions now
   
   correct_predictions = predictions*targets
-  number_of_correct_predictions = np.sum(correct_predictions)
-  accuracy = number_of_correct_predictions / batch_size
+  accuracy = np.mean(np.sum(correct_predictions, axis=1))
 
   # END OF YOUR CODE    #
   #######################
@@ -91,11 +87,12 @@ def train():
   cifar10 = cifar10_utils.get_cifar10(DATA_DIR_DEFAULT)
 
   x_test, y_test = cifar10['test'].images, cifar10['test'].labels
+  
 
   input_size = np.shape(x_test)[1] * np.shape(x_test)[2] * np.shape(x_test)[3]
   class_size = np.shape(y_test)[1]
 
-  # seems like it is still given as a string. So ensuring that it is a list of ints now
+  x_test = x_test.reshape([np.shape(x_test)[0], input_size])
 
   model = MLP(n_inputs=input_size, n_hidden=dnn_hidden_units, n_classes=class_size)
 
@@ -106,24 +103,42 @@ def train():
   # vector_loss_forward = np.vectorize(calculate_loss.forward)
   # vector_loss_backward = np.vectorize(calculate_loss.backward)
 
+  accuracies = []
   for step in range(MAX_STEPS_DEFAULT):
         x, y = cifar10['train'].next_batch(BATCH_SIZE_DEFAULT)
+
+        ## something is going wrong here, as it passes the wrong dimensions when going a second time
         x = x.reshape([np.shape(x)[0], input_size])
         
         # forward_out = vector_forward(x)
+
         forward_out = model.forward(x)
 
-        #loss = vector_loss_forward(forward_out, y)
-        loss_gradient = calculate_loss.backward(forward_out, y)
+        loss = calculate_loss.forward(forward_out, y)
+
+        loss_gradient = calculate_loss.backward(loss, y)
 
         model.backward(loss_gradient)
 
+        for layer in model.layers:
+              if hasattr(layer, 'params'):
+                  #GET THE GRADIENTS
+                  #UPDATE THE WEIGHTS
+                  layer.params['weight'] = layer.params['weight'] - LEARNING_RATE_DEFAULT*layer.grads['weight']
+                  layer.params['bias'] = layer.params['bias'] - LEARNING_RATE_DEFAULT*layer.grads['bias']            
+
+        
+        
+
+
         # evaluate every EVAL_FREQ_DEFAULT steps
+        # if step % EVAL_FREQ_DEFAULT == 0:
         if step % EVAL_FREQ_DEFAULT == 0:
               # get the values for test input
               test_forward = model.forward(x_test)
               # print the accuracy
               print(accuracy(test_forward, y_test))
+              accuracies.append(accuracy)
 
 
         
