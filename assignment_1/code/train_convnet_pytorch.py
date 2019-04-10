@@ -72,6 +72,10 @@ def train():
     ########################
     # PUT YOUR CODE HERE  #
 
+    accuracies = []
+    trainLosses = []
+    valLosses = []
+
 
     # check if GPU is available. If not, use CPU
     if torch.cuda.is_available():
@@ -92,10 +96,13 @@ def train():
     net = ConvNet(n_channels=num_channels, n_classes=class_size)
 
     criterion = torch.nn.CrossEntropyLoss()
+    testCriterion = torch.nn.CrossEntropyLoss()
 
     optimizer = optim.Adam(net.parameters(), lr=LEARNING_RATE_DEFAULT)
 
-    for step in range(MAX_STEPS_DEFAULT):
+    # for step in range(MAX_STEPS_DEFAULT):
+    for step in range(1):
+
         print(step)
         x, y = cifar10['train'].next_batch(BATCH_SIZE_DEFAULT)
         x = torch.from_numpy(x)
@@ -106,17 +113,27 @@ def train():
 
         y = y.argmax(dim=1)
 
-        loss = criterion(out, y)
-        loss.backward()
+        trainLoss = criterion(out, y)
+        trainLoss.backward()
         optimizer.step()
 
-        print(loss.item())
 
         if step % EVAL_FREQ_DEFAULT == 0:
-            # test_out = net.forward(x_test)
-            # print(accuracy(test_out, y_test))
-            test_out = net.forward(x)
-            print(accuracy(test_out, y))
+            test_out = net.forward(x_test)
+
+            valLoss = testCriterion(test_out, y_test.argmax(dim=1))
+            trainLosses.append(trainLoss.data.item())
+            valLosses.append(valLoss.data.item())
+            accuracies.append((accuracy(test_out, y_test)))
+
+    print("accuracy")
+    print(accuracies)
+    print("val loss")
+    print(valLosses)
+    print("train loss")
+    print(trainLosses)
+
+
 
 
 # END OF YOUR CODE    #
