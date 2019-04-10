@@ -52,8 +52,6 @@ class MLP(nn.Module):
 
     self.layers.append(nn.Linear(n_hidden[-1], n_classes))
 
-    self.layers.append(nn.Softmax(dim=1))
-
     model = nn.Sequential(*self.layers)
     self.model = model
 
@@ -77,7 +75,7 @@ class MLP(nn.Module):
     ########################
     # PUT YOUR CODE HERE  #
     
-    out = self.model.forward(x)
+    out = self.model(x)
 
     # END OF YOUR CODE    #
     #######################

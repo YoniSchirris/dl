@@ -12,12 +12,16 @@ import os
 from mlp_pytorch import MLP
 import cifar10_utils
 
+import torch
+import torch.optim as optim
+
 # Default constants
 DNN_HIDDEN_UNITS_DEFAULT = '100'
 LEARNING_RATE_DEFAULT = 2e-3
 MAX_STEPS_DEFAULT = 1500
 BATCH_SIZE_DEFAULT = 200
 EVAL_FREQ_DEFAULT = 100
+OPTIMIZER_DEFAULT = 'sgd'
 
 # Directory in which cifar data is saved
 DATA_DIR_DEFAULT = './cifar10/cifar-10-batches-py'
@@ -44,9 +48,11 @@ def accuracy(predictions, targets):
 
   ########################
   # PUT YOUR CODE HERE  #
-  #######################
-  raise NotImplementedError
-  ########################
+
+  max_index_p = predictions.argmax(dim=1)
+  max_index_t = targets.argmax(dim=1)
+  accuracy = (max_index_p == max_index_t).float().mean().data.item()
+
   # END OF YOUR CODE    #
   #######################
 
@@ -74,9 +80,53 @@ def train():
 
   ########################
   # PUT YOUR CODE HERE  #
-  #######################
-  raise NotImplementedError
-  ########################
+  
+  # get test data to initialize the model with
+  cifar10 = cifar10_utils.get_cifar10(DATA_DIR_DEFAULT)
+
+  x_test, y_test = cifar10['test'].images, cifar10['test'].labels  
+
+  input_size = np.shape(x_test)[1] * np.shape(x_test)[2] * np.shape(x_test)[3]
+  class_size = np.shape(y_test)[1]
+
+  x_test = torch.from_numpy(x_test.reshape([np.shape(x_test)[0], input_size]))
+  y_test = torch.from_numpy(y_test)
+
+
+  net = MLP(n_inputs=input_size, n_hidden=dnn_hidden_units, n_classes=class_size)
+
+  criterion = torch.nn.CrossEntropyLoss()
+
+  if OPTIMIZER_DEFAULT == 'sgd':
+    optimizer = optim.SGD(net.parameters(), lr=LEARNING_RATE_DEFAULT, momentum=0.2)
+  elif OPTIMIZER_DEFAULT=='adam':    
+    optimizer = optim.Adam(net.parameters(), lr=LEARNING_RATE_DEFAULT)
+
+  for step in range(MAX_STEPS_DEFAULT):
+      x, y = cifar10['train'].next_batch(BATCH_SIZE_DEFAULT)
+      x = x.reshape([np.shape(x)[0], input_size])
+      x = torch.from_numpy(x)
+      y = torch.from_numpy(y)
+      optimizer.zero_grad()
+
+      out = net.forward(x)
+      # convert out and y to index of max (class prediction)?
+      y = y.argmax(dim=1)
+
+      # required?
+      # x = x.argmax(dim=1)
+
+      loss = criterion(out, y)
+      loss.backward()  
+      optimizer.step()
+      # print(loss.item())
+
+
+      if step % EVAL_FREQ_DEFAULT == 0:
+            test_out = net.forward(x_test)
+            print(accuracy(test_out, y_test))
+
+
   # END OF YOUR CODE    #
   #######################
 
@@ -115,6 +165,8 @@ if __name__ == '__main__':
                         help='Frequency of evaluation on the test set')
   parser.add_argument('--data_dir', type = str, default = DATA_DIR_DEFAULT,
                       help='Directory for storing input data')
+  parser.add_argument('--optimizer', type = str, default = OPTIMIZER_DEFAULT,
+                      help='adam or sgd')
   FLAGS, unparsed = parser.parse_known_args()
 
   main()
