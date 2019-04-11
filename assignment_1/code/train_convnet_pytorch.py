@@ -79,9 +79,11 @@ def train():
 
     # check if GPU is available. If not, use CPU
     if torch.cuda.is_available():
-        torch.device('cuda')
+        device = torch.device('cuda')
     else:
-        torch.device('cpu')
+        device = torch.device('cpu')
+
+
 
     cifar10 = cifar10_utils.get_cifar10(DATA_DIR_DEFAULT)
 
@@ -90,10 +92,10 @@ def train():
     num_channels = np.shape(x_test)[1]
     class_size = np.shape(y_test)[1]
 
-    x_test = torch.from_numpy(x_test)
-    y_test = torch.from_numpy(y_test)
+    x_test = torch.from_numpy(x_test).to(device)
+    y_test = torch.from_numpy(y_test).to(device)
 
-    net = ConvNet(n_channels=num_channels, n_classes=class_size)
+    net = ConvNet(n_channels=num_channels, n_classes=class_size).to(device)
 
     criterion = torch.nn.CrossEntropyLoss()
     testCriterion = torch.nn.CrossEntropyLoss()
@@ -105,8 +107,8 @@ def train():
 
         print(step)
         x, y = cifar10['train'].next_batch(BATCH_SIZE_DEFAULT)
-        x = torch.from_numpy(x)
-        y = torch.from_numpy(y)
+        x = torch.from_numpy(x).to(device)
+        y = torch.from_numpy(y).to(device)
         optimizer.zero_grad()
 
         out = net(x)
