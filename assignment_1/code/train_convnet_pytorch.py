@@ -72,10 +72,11 @@ def train():
     ########################
     # PUT YOUR CODE HERE  #
 
-    accuracies = []
+    accuracies_on_train = []
+    accuracies_on_test = []
+
     trainLosses = []
     valLosses = []
-
 
     # check if GPU is available. If not, use CPU
     if torch.cuda.is_available():
@@ -83,32 +84,33 @@ def train():
     else:
         device = torch.device('cpu')
 
-
-
     cifar10 = cifar10_utils.get_cifar10(DATA_DIR_DEFAULT)
 
-    x_test, y_test = cifar10['test'].images, cifar10['test'].labels
 
-    num_channels = np.shape(x_test)[1]
-    class_size = np.shape(y_test)[1]
+    num_channels = 3
+    class_size = 10
 
-    x_test = torch.from_numpy(x_test).to(device)
-    y_test = torch.from_numpy(y_test).to(device)
+    # get iterations required for test batching for accuracy calculation
+    num_test_iters = int(np.ceil(cifar10['test']._num_examples) / BATCH_SIZE_DEFAULT)
 
+    # # set to torch tensors
+    # x_test = torch.from_numpy(x_test)
+    # y_test = torch.from_numpy(y_test)
+
+    # initialize model
     net = ConvNet(n_channels=num_channels, n_classes=class_size).to(device)
 
+    # initialize loss function
     criterion = torch.nn.CrossEntropyLoss()
-    testCriterion = torch.nn.CrossEntropyLoss()
 
+    # initialize adam optimizer
     optimizer = optim.Adam(net.parameters(), lr=LEARNING_RATE_DEFAULT)
 
-    # for step in range(MAX_STEPS_DEFAULT):
-    for step in range(1):
-
+    for step in range(MAX_STEPS_DEFAULT):
         print(step)
         x, y = cifar10['train'].next_batch(BATCH_SIZE_DEFAULT)
-        x = torch.from_numpy(x).to(device)
-        y = torch.from_numpy(y).to(device)
+        x = torch.tensor(x).to(device)
+        y = torch.tensor(y).to(device)
         optimizer.zero_grad()
 
         out = net(x)
@@ -119,27 +121,50 @@ def train():
         trainLoss.backward()
         optimizer.step()
 
+        out.detach()
 
         if step % EVAL_FREQ_DEFAULT == 0:
-            test_out = net.forward(x_test)
+            accuracies_on_test_intermediate = []
+            loss_on_test_intermediate = []
 
-            valLoss = testCriterion(test_out, y_test.argmax(dim=1))
+            for test_iter in range(num_test_iters):
+                x_test, y_test = cifar10['test'].next_batch(BATCH_SIZE_DEFAULT)
+                x_test = torch.tensor(x_test, requires_grad=False).to(device)
+                y_test = torch.tensor(y_test, requires_grad=False).to(device)
+
+                test_out = net(x_test)
+
+                accuracies_on_test_intermediate.append(accuracy(test_out, y_test))
+                loss_on_test_intermediate.append(criterion(test_out, y_test.argmax(dim=1)))
+
+                test_out.detach()
+                x_test.detach()
+                y_test.detach()
+
+            # valLoss = criterion(test_out, y_test.argmax(dim=1))
+            valLoss = np.mean(loss_on_test_intermediate)
+            valAccuracy = np.mean(accuracies_on_test_intermediate)
+            trainAccuracy = accuracy(out, y)
+
             trainLosses.append(trainLoss.data.item())
             valLosses.append(valLoss.data.item())
-            accuracies.append((accuracy(test_out, y_test)))
 
-    print("accuracy")
-    print(accuracies)
-    print("val loss")
+            accuracies_on_test.append(valAccuracy)
+            accuracies_on_train.append(trainAccuracy)
+
+
+    print("accuracy on train")
+    print(accuracies_on_train)
+    print("accuracy on test")
+    print(accuracies_on_test)
+    print("validation losses")
     print(valLosses)
-    print("train loss")
+    print("train losses")
     print(trainLosses)
 
 
-
-
 # END OF YOUR CODE    #
-    #######################
+#######################
 
 
 def print_flags():
