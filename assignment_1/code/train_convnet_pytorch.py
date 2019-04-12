@@ -115,9 +115,8 @@ def train():
 
         out = net(x)
 
-        y = y.argmax(dim=1)
 
-        trainLoss = criterion(out, y)
+        trainLoss = criterion(out, y.argmax(dim=1))
         trainLoss.backward()
         optimizer.step()
 
@@ -135,7 +134,7 @@ def train():
                 test_out = net(x_test)
 
                 accuracies_on_test_intermediate.append(accuracy(test_out, y_test))
-                loss_on_test_intermediate.append(criterion(test_out, y_test.argmax(dim=1)))
+                loss_on_test_intermediate.append(criterion(test_out, y_test.argmax(dim=1)).data.item())
 
                 test_out.detach()
                 x_test.detach()
@@ -147,7 +146,7 @@ def train():
             trainAccuracy = accuracy(out, y)
 
             trainLosses.append(trainLoss.data.item())
-            valLosses.append(valLoss.data.item())
+            valLosses.append(valLoss)
 
             accuracies_on_test.append(valAccuracy)
             accuracies_on_train.append(trainAccuracy)
