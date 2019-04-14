@@ -184,8 +184,10 @@ class CustomBatchNormManualFunction(torch.autograd.Function):
         ########################
         # PUT YOUR CODE HERE  #
 
+        # get the tensors from the forward pass
         mean, inv_variance, x_hat, gamma = ctx.saved_tensors
 
+        # just naming convention to be similar to my formulas in the report
         dLdy = grad_output
 
         if ctx.needs_input_grad[2]:
