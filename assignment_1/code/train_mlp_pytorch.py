@@ -23,6 +23,8 @@ BATCH_SIZE_DEFAULT = 200
 EVAL_FREQ_DEFAULT = 100
 OPTIMIZER_DEFAULT = 'sgd'
 
+REGULARIZER_DEFAULT = 1e-2
+
 # Directory in which cifar data is saved
 DATA_DIR_DEFAULT = './cifar10/cifar-10-batches-py'
 
@@ -100,7 +102,7 @@ def train():
   if OPTIMIZER_DEFAULT == 'sgd':
     optimizer = optim.SGD(net.parameters(), lr=LEARNING_RATE_DEFAULT, momentum=0.2)
   elif OPTIMIZER_DEFAULT=='adam':    
-    optimizer = optim.Adam(net.parameters(), lr=LEARNING_RATE_DEFAULT)
+    optimizer = optim.Adam(net.parameters(), lr=LEARNING_RATE_DEFAULT, weight_decay=REGULARIZER_DEFAULT)
 
   for step in range(MAX_STEPS_DEFAULT):
       x, y = cifar10['train'].next_batch(BATCH_SIZE_DEFAULT)
@@ -167,6 +169,9 @@ if __name__ == '__main__':
                       help='Directory for storing input data')
   parser.add_argument('--optimizer', type = str, default = OPTIMIZER_DEFAULT,
                       help='adam or sgd')
+  parser.add_argument('--regularizer', type=float, default=REGULARIZER_DEFAULT,
+                      help='Weight decay for the adam optimizer')
+
   FLAGS, unparsed = parser.parse_known_args()
 
   main()
