@@ -50,6 +50,8 @@ def accuracy(predictions, targets):
     # PUT YOUR CODE HERE  #
     max_index_p = predictions.argmax(dim=1)
     max_index_t = targets.argmax(dim=1)
+
+    # only returns the actual floats, not the tensors
     accuracy = (max_index_p == max_index_t).float().mean().data.item()
     # END OF YOUR CODE    #
     #######################
@@ -72,9 +74,15 @@ def train():
     ########################
     # PUT YOUR CODE HERE  #
 
+    # save input given via bash script
+    LEARNING_RATE_DEFAULT = FLAGS.learning_rate
+    MAX_STEPS_DEFAULT = FLAGS.max_steps
+    BATCH_SIZE_DEFAULT = FLAGS.batch_size
+    EVAL_FREQ_DEFAULT = FLAGS.eval_freq
+
+    # lists to save all the results
     accuracies_on_train = []
     accuracies_on_test = []
-
     trainLosses = []
     valLosses = []
 
@@ -86,18 +94,17 @@ def train():
 
     cifar10 = cifar10_utils.get_cifar10(DATA_DIR_DEFAULT)
 
-
+    # because RGB images
     num_channels = 3
     class_size = 10
 
     # get iterations required for test batching for accuracy calculation
+    # this is required to save GPU memory. Or maybe it isn't, because the memory issues I had
+    # were because of saving tensors.
+    # anyway...
     num_test_iters = int(np.ceil(cifar10['test']._num_examples) / BATCH_SIZE_DEFAULT)
 
-    # # set to torch tensors
-    # x_test = torch.from_numpy(x_test)
-    # y_test = torch.from_numpy(y_test)
-
-    # initialize model
+    # initialize model and set it to GPU if it's there
     net = ConvNet(n_channels=num_channels, n_classes=class_size).to(device)
 
     # initialize loss function
@@ -107,51 +114,75 @@ def train():
     optimizer = optim.Adam(net.parameters(), lr=LEARNING_RATE_DEFAULT)
 
     for step in range(MAX_STEPS_DEFAULT):
+        # as a check to see if it runs correctly, I run the steps where it is
         print(step)
+
+        # get the data
         x, y = cifar10['train'].next_batch(BATCH_SIZE_DEFAULT)
+
+        # set it to the GPU if it's there
         x = torch.tensor(x).to(device)
         y = torch.tensor(y).to(device)
+
+        # reset gradients
         optimizer.zero_grad()
 
+        # get the output from the next
         out = net(x)
 
-
+        # get the loss
         trainLoss = criterion(out, y.argmax(dim=1))
+
+        # run backprop
+        # <3 pytorch
         trainLoss.backward()
         optimizer.step()
 
+        # detach to save some memory
         out.detach()
 
+        # every eval_freq_default steps...
         if step % EVAL_FREQ_DEFAULT == 0:
+            # intermediate saving.. of results
             accuracies_on_test_intermediate = []
             loss_on_test_intermediate = []
 
+            # for all itereations required to go through the entire test data given the batch size
             for test_iter in range(num_test_iters):
+                # get data
                 x_test, y_test = cifar10['test'].next_batch(BATCH_SIZE_DEFAULT)
+                # set to gpu
                 x_test = torch.tensor(x_test, requires_grad=False).to(device)
                 y_test = torch.tensor(y_test, requires_grad=False).to(device)
 
+                # get output
                 test_out = net(x_test)
 
+                # calculate accuracies and losses
                 accuracies_on_test_intermediate.append(accuracy(test_out, y_test))
+                # don't save tensors, only the results!
                 loss_on_test_intermediate.append(criterion(test_out, y_test.argmax(dim=1)).data.item())
 
+                # save some memory
                 test_out.detach()
                 x_test.detach()
                 y_test.detach()
 
             # valLoss = criterion(test_out, y_test.argmax(dim=1))
+
+            # mean over all intermediate results
             valLoss = np.mean(loss_on_test_intermediate)
             valAccuracy = np.mean(accuracies_on_test_intermediate)
             trainAccuracy = accuracy(out, y)
 
+            # and save
             trainLosses.append(trainLoss.data.item())
             valLosses.append(valLoss)
-
             accuracies_on_test.append(valAccuracy)
             accuracies_on_train.append(trainAccuracy)
 
 
+    # print all results
     print("accuracy on train")
     print(accuracies_on_train)
     print("accuracy on test")

@@ -38,10 +38,13 @@ class CustomBatchNormAutograd(nn.Module):
         ########################
         # PUT YOUR CODE HERE  #
 
+        # save all parameters for later use
         self.n_neurons = n_neurons
+        self.eps = eps
+
+        # here the gamma and beta are clarified to be the module's parameters
         self.gamma = nn.Parameter(torch.ones(n_neurons))
         self.beta = nn.Parameter(torch.zeros(n_neurons))
-        self.eps = eps
 
         # END OF YOUR CODE    #
         #######################
@@ -64,22 +67,23 @@ class CustomBatchNormAutograd(nn.Module):
         ########################
         # PUT YOUR CODE HERE  #
 
-        # check correctness of shape
+        # check correctness of shape. if not, raise exception
         if not (input.shape[1] == self.n_neurons): raise Exception(
             "Input size is not correct. Input is {}, while it was initalized with {}".format(input.shape[1],
                                                                                              self.n_neurons))
 
         # implement batch normalization forward pass as given in the assignment
-        # compute mean
-        # where the expectation and variance are computed over the training data set
 
+        # compute mean
         mean = input.mean(dim=0)
 
-        # compute variance
+        # compute variance with unbiased=false
         variance = input.var(dim=0, unbiased=False)
+
         # normalize
         normalized_input = input - mean
         normalized_input /= (variance + self.eps).sqrt()
+
         # scale and shift
         out = self.gamma * normalized_input + self.beta
 
@@ -140,9 +144,6 @@ class CustomBatchNormManualFunction(torch.autograd.Function):
         #                                                                                      self.n_neurons))
 
         # implement batch normalization forward pass as given in the assignment
-        # compute mean
-        # where the expectation and variance are computed over the training data set
-
         mean = input.mean(dim=0)
 
         # compute variance
@@ -150,13 +151,14 @@ class CustomBatchNormManualFunction(torch.autograd.Function):
         # normalize
         input_centered = input - mean
         denom = (variance + eps).sqrt()
-
         x_hat = input_centered / denom
+
         # scale and shift
         y = gamma * x_hat + beta
 
         out = y
 
+        # save variables required for backward pass
         ctx.save_for_backward(mean, (1.0 / denom), x_hat, gamma)
 
         # END OF YOUR CODE    #
@@ -184,39 +186,48 @@ class CustomBatchNormManualFunction(torch.autograd.Function):
         ########################
         # PUT YOUR CODE HERE  #
 
-        # get the tensors from the forward pass
+        # get the tensors from the forward pass that were saved
         mean, inv_variance, x_hat, gamma = ctx.saved_tensors
 
         # just naming convention to be similar to my formulas in the report
         dLdy = grad_output
 
+        # check it it really should be calculated
         if ctx.needs_input_grad[2]:
+            # if so...
             # calculate derivative wrt gamma
             dLdgamma = (dLdy * x_hat).sum(dim=0)
             grad_gamma = dLdgamma
         else:
+            # else set none to save memory
             grad_gamma = None
 
+        # check if it should be calculated
         if ctx.needs_input_grad[1]:
+            # if so...
             # calculate derivative wrt beta
             dLdbeta = dLdy.sum(dim=0)
             grad_beta = dLdbeta
         else:
+            # else set none to save memory
             grad_beta = None
 
+        # check if it really should be calculated
         if ctx.needs_input_grad[0]:
+            # if so...
             # calcualte derivative wrt input
             batch_size = dLdy.shape[0]
             dLdx_hat = dLdy * gamma
 
             # filling it all into the final big equation as stated in the report
-            dLdx = 1.0/batch_size * inv_variance * (
-                                                    batch_size * dLdx_hat
-                                                    - dLdx_hat.sum(dim=0)
-                                                    - x_hat * (dLdx_hat * x_hat).sum(dim=0)
-                                                    )
+            dLdx = 1.0 / batch_size * inv_variance * (
+                    batch_size * dLdx_hat
+                    - dLdx_hat.sum(dim=0)
+                    - x_hat * (dLdx_hat * x_hat).sum(dim=0)
+            )
             grad_input = dLdx
         else:
+            # else set none to save memory
             grad_input = None
 
         # END OF YOUR CODE    #
@@ -254,6 +265,7 @@ class CustomBatchNormManualModule(nn.Module):
         ########################
         # PUT YOUR CODE HERE  #
 
+        # same as first assignment
         self.n_neurons = n_neurons
         self.gamma = nn.Parameter(torch.ones(n_neurons))
         self.beta = nn.Parameter(torch.zeros(n_neurons))
@@ -289,7 +301,6 @@ class CustomBatchNormManualModule(nn.Module):
 
         # Call it via its .apply() method.
         out = custom_batch_norm_manual_function.apply(input, self.gamma, self.beta, self.eps)
-
 
         # END OF YOUR CODE    #
         #######################

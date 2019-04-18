@@ -6,120 +6,112 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-from modules import * 
+from modules import *
+
 
 class MLP(object):
-  """
-  This class implements a Multi-layer Perceptron in NumPy.
-  It handles the different layers and parameters of the model.
-  Once initialized an MLP object can perform forward and backward.
-  """
-
-  def __init__(self, n_inputs, n_hidden, n_classes):
     """
-    Initializes MLP object. 
-    
-    Args:
-      n_inputs: number of inputs.
-      n_hidden: list of ints, specifies the number of units
-                in each linear layer. If the list is empty, the MLP
-                will not have any linear layers, and the model
-                will simply perform a multinomial logistic regression.
-      n_classes: number of classes of the classification problem.
-                 This number is required in order to specify the
-                 output dimensions of the MLP
-    
-    TODO:
-    Implement initialization of the network.
+    This class implements a Multi-layer Perceptron in NumPy.
+    It handles the different layers and parameters of the model.
+    Once initialized an MLP object can perform forward and backward.
     """
 
-    ########################
-    # PUT YOUR CODE HERE  #
+    def __init__(self, n_inputs, n_hidden, n_classes):
+        """
+        Initializes MLP object.
 
-    self.layers = []
+        Args:
+          n_inputs: number of inputs.
+          n_hidden: list of ints, specifies the number of units
+                    in each linear layer. If the list is empty, the MLP
+                    will not have any linear layers, and the model
+                    will simply perform a multinomial logistic regression.
+          n_classes: number of classes of the classification problem.
+                     This number is required in order to specify the
+                     output dimensions of the MLP
 
-    # add the first layer, it takes n_inputs and outputs the number for the first linear layer
-    self.layers.append(LinearModule(n_inputs, n_hidden[0]))
+        TODO:
+        Implement initialization of the network.
+        """
 
-    # add the relu activation for first layer
-    self.layers.append(ReLUModule())
+        ########################
+        # PUT YOUR CODE HERE  #
 
-    # for each of the elements up until the first-to-last, add a linear layer with relu activation
-    for i in range(len(n_hidden)-1):
-          # here, input is output from previous
-          self.layers.append(LinearModule(n_hidden[i], n_hidden[i+1]))
-          self.layers.append(ReLUModule())
+        # list to first keep all the layers
+        # this is especially nice, as far as I know, to store the variable amount of layers
+        self.layers = []
 
-    # finally, we want the final layer to output the number of classes
-    self.layers.append(LinearModule(n_hidden[-1], n_classes))
+        # add the first layer, it takes n_inputs and outputs the number for the first linear layer
+        self.layers.append(LinearModule(n_inputs, n_hidden[0]))
 
-    # and the get the softmax
-    self.layers.append(SoftMaxModule())
-    
+        # add the relu activation for first layer
+        self.layers.append(ReLUModule())
 
-    # END OF YOUR CODE    #
-    #######################
+        # for each of the elements up until the first-to-last, add a linear layer with relu activation
+        for i in range(len(n_hidden) - 1):
+            # here, input is output from previous
+            self.layers.append(LinearModule(n_hidden[i], n_hidden[i + 1]))
+            self.layers.append(ReLUModule())
 
-  def forward(self, x):
-    """
-    Performs forward pass of the input. Here an input tensor x is transformed through 
-    several layer transformations.
-    
-    Args:
-      x: input to the network
-    Returns:
-      out: outputs of the network
-    
-    TODO:
-    Implement forward pass of the network.
-    """
+        # finally, we want the final layer to output the number of classes
+        self.layers.append(LinearModule(n_hidden[-1], n_classes))
 
-    ########################
-    # PUT YOUR CODE HERE  #
+        # and then get the softmax
+        self.layers.append(SoftMaxModule())
 
-    for layer in self.layers:
-          x = layer.forward(x)
+        # END OF YOUR CODE    #
+        #######################
 
-    out = x
-    # NUMBER_OF_LINEAR_LAYERS = len(self.linears)
+    def forward(self, x):
+        """
+        Performs forward pass of the input. Here an input tensor x is transformed through
+        several layer transformations.
 
-    # linear_out = self.linears[0].forward(x)
-    # relu_out = self.relu.forward(linear_out)
+        Args:
+          x: input to the network
+        Returns:
+          out: outputs of the network
 
-    # if NUMBER_OF_LINEAR_LAYERS > 1:
-    #   for i in range(1, NUMBER_OF_LINEAR_LAYERS-1):
-    #     linear_out = self.linears[i].forward(relu_out)
-    #     relu_out = self.relu.forward(linear_out)
-    
-    # linear_out = self.linears[-1].forward(relu_out)
+        TODO:
+        Implement forward pass of the network.
+        """
 
-    # softmax_out = self.softmax.forward(relu_out)
-               
-    # out = softmax_out
-    # END OF YOUR CODE    #
-    #######################
+        ########################
+        # PUT YOUR CODE HERE  #
 
-    return out
+        # loop over all layers
+        for layer in self.layers:
+            # run the forward function and throw the output into the next forward
+            x = layer.forward(x)
 
-  def backward(self, dout):
-    """
-    Performs backward pass given the gradients of the loss. 
+        out = x
 
-    Args:
-      dout: gradients of the loss
-    
-    TODO:
-    Implement backward pass of the network.
-    """
-    
-    ########################
-    # PUT YOUR CODE HERE  #
-    dx = dout
+        # END OF YOUR CODE    #
+        #######################
 
-    for layer in self.layers[::-1]:
-          dx = layer.backward(dx)
+        return out
 
-    # END OF YOUR CODE    #
-    #######################
+    def backward(self, dout):
+        """
+        Performs backward pass given the gradients of the loss.
 
-    return
+        Args:
+          dout: gradients of the loss
+
+        TODO:
+        Implement backward pass of the network.
+        """
+
+        ########################
+        # PUT YOUR CODE HERE  #
+        dx = dout
+
+        # reversely loop over all the layers
+        for layer in self.layers[::-1]:
+            # get the gradient, and pass this as input into the next (previous) layer
+            dx = layer.backward(dx)
+
+        # END OF YOUR CODE    #
+        #######################
+
+        return

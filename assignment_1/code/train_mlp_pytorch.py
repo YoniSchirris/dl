@@ -21,9 +21,10 @@ LEARNING_RATE_DEFAULT = 2e-3
 MAX_STEPS_DEFAULT = 1500
 BATCH_SIZE_DEFAULT = 200
 EVAL_FREQ_DEFAULT = 100
-OPTIMIZER_DEFAULT = 'sgd'
 
-# self-added constant
+
+# self-added variables
+OPTIMIZER_DEFAULT = 'sgd'
 REGULARIZER_DEFAULT = 0
 MOMENTUM_DEFAULT = 0
 
@@ -86,18 +87,23 @@ def train():
     else:
         dnn_hidden_units = []
 
+
+
+    ########################
+    # PUT YOUR CODE HERE  #
+
+    # because I don't have a GPU and the training was quick enough on a CPU,
+    # I don't save my tensor on a GPU
+
     LEARNING_RATE_DEFAULT = FLAGS.learning_rate
     MAX_STEPS_DEFAULT = FLAGS.max_steps
     BATCH_SIZE_DEFAULT = FLAGS.batch_size
     EVAL_FREQ_DEFAULT = FLAGS.eval_freq
     OPTIMIZER_DEFAULT = FLAGS.optimizer
 
-    # self-added constant
+    # self-added variables
     REGULARIZER_DEFAULT = FLAGS.regularizer
     MOMENTUM_DEFAULT = FLAGS.momentum
-
-    ########################
-    # PUT YOUR CODE HERE  #
 
     # get test data to initialize the model with
     cifar10 = cifar10_utils.get_cifar10(DATA_DIR_DEFAULT)
@@ -120,6 +126,7 @@ def train():
     eval_loss = []
     train_loss = []
 
+    # choose between optimizer
     if OPTIMIZER_DEFAULT == 'sgd':
         optimizer = optim.SGD(net.parameters(), lr=LEARNING_RATE_DEFAULT, momentum=MOMENTUM_DEFAULT, weight_decay=REGULARIZER_DEFAULT)
     elif OPTIMIZER_DEFAULT == 'adam':

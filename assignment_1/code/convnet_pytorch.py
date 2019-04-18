@@ -12,7 +12,6 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 
-
 class ConvNet(nn.Module):
     """
     This class implements a Convolutional Neural Network in PyTorch.
@@ -36,79 +35,70 @@ class ConvNet(nn.Module):
         ########################
         # PUT YOUR CODE HERE  #\
 
-        # torch.nn.Conv2d(in_channels, out_channels, kernel_size, stride=1, padding=0,
-        # dilation=1, groups=1, bias=True)
-
-        # torch.nn.MaxPool2d(kernel_size, stride=None, padding=0,
-        #                    dilation=1, return_indices=False, ceil_mode=False)
-
-        # avg pool:
-        # kernel_size: Any,
-        # stride: Any = None,
-        # padding: int = 0,
-        # ceil_mode: bool = False,
-        # count_include_pad: bool = True)
-
         super(ConvNet, self).__init__()
 
         # I assume we keep the std parameters for conv2d as dilation=1, groups=1, bias=True
         # I assume we keep the std parameters for maxpool as dilation=1, return_indices=false, ceil_mode=false
 
+        # I directly add all layers in a nn.Sequential with all the numbers from the table
+        # To me, this is cleanest if no parameter search is done (as it then would need variable inputs here)
+
+        # This does the feature extraction
         self.feats = nn.Sequential(
-            # conv1
+            # add conv1
             nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(num_features=64),
             nn.ReLU(),
-            # maxpool1
+            # add maxpool1
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
 
-            # conv2
+            # add conv2
             nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(num_features=128),
             nn.ReLU(),
-            # maxpool2
+            # add maxpool2
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
 
-            # conv3_a
+            # add conv3_a
             nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(num_features=256),
             nn.ReLU(),
 
-            # conv3_b
+            # add conv3_b
             nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(num_features=256),
             nn.ReLU(),
-            # maxpool3
+            # add maxpool3
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
 
-            # conv4_a
+            # add conv4_a
             nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(num_features=512),
             nn.ReLU(),
-            # conv4_b
+            # add conv4_b
             nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(num_features=512),
             nn.ReLU(),
-            # maxpool4
+            # add maxpool4
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
 
-            # conv5_a
+            # add conv5_a
             nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(num_features=512),
             nn.ReLU(),
-            # conv5_b
+            # add conv5_b
             nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(num_features=512),
             nn.ReLU(),
-            # maxpool5
+            # add maxpool5
             nn.MaxPool2d(kernel_size=3, stride=2, padding=1),
 
-            # avgpool
+            # add avgpool
             nn.AvgPool2d(kernel_size=1, stride=1, padding=0),
-
 
         )
 
+        # This does the final mapping to the number of classes (the fully connected layer)
         self.linearLayer = nn.Linear(in_features=512, out_features=10)
 
         # END OF YOUR CODE    #
@@ -131,9 +121,10 @@ class ConvNet(nn.Module):
         ########################
         # PUT YOUR CODE HERE  #
 
+        # get all the features
         out = self.feats(x)
 
-        # linear
+        # map all features to n_classes dimensional space
         out = self.linearLayer(out.view(x.shape[0], -1))
 
         # END OF YOUR CODE    #
