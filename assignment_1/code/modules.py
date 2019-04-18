@@ -28,6 +28,8 @@ class LinearModule(object):
     #######################
 
     mu = 0
+
+    # this needs to be increased if we want to use several layers
     sigma = 0.0001
     
     # weights are R ^ out * in
@@ -63,13 +65,10 @@ class LinearModule(object):
     ########################
     # PUT YOUR CODE HERE  #
 
-    # W [out * in ] * x [in] + b [ out ]
-
-
     out = np.dot(self.params['weight'], x.T)
     out += self.params['bias']
-
     self.x = x
+
     # END OF YOUR CODE    #
     #######################
 
@@ -95,7 +94,6 @@ class LinearModule(object):
     W = self.params['weight']
     dx = np.dot(dout, W)
 
-    # or should this be np.sum? Doesn't seem to make a difference.
     dLdb = np.sum(dout, axis=0)
     dLdb = np.reshape(dLdb, [np.shape(dLdb)[0], 1])
     self.grads['bias'] = dLdb    
@@ -130,6 +128,7 @@ class ReLUModule(object):
     ########################
     # PUT YOUR CODE HERE  #
 
+    # simple relu
     self.I_tilde = (x>0)
 
     out = x * self.I_tilde
@@ -155,10 +154,10 @@ class ReLUModule(object):
     ########################
     # PUT YOUR CODE HERE  #
 
+    # a simple multiplication
     I_tilde = self.I_tilde
 
     dx = dout * I_tilde
-
 
     # END OF YOUR CODE    #
     #######################    
@@ -189,7 +188,6 @@ class SoftMaxModule(object):
 
     # as taken from https://timvieira.github.io/blog/post/2014/02/11/exp-normalize-trick/
     y = np.exp((x.T-np.max(x, axis=1)).T)
-
     out = (y.T / np.sum(y, axis=1)).T
     self.out = out
     
@@ -215,14 +213,21 @@ class SoftMaxModule(object):
     # PUT YOUR CODE HERE  #
     xN = self.out
 
+    # the following technique is implemented by looking at the following source:
     # https://stackoverflow.com/questions/26511401/numpy-fastest-way-of-computing-diagonal-for-each-row-of-a-2d-array
+
+    # this creates the batch_size * n * n matrix that holds batch times diagonals
     diag_holder = np.zeros((xN.shape[0], xN.shape[1], xN.shape[1]))
     diag = np.arange(xN.shape[1])
     diag_holder[:, diag, diag] = xN
 
+    # Here we then perform the outer product between the output of the layer
+    # and subtract that from the diagonals
     dxdtilde = diag_holder - np.einsum('ij, ik -> ijk', xN, xN)
 
+    # And we multiply this with the gradients
     dx = np.einsum('ij, ijk -> ik', dout, dxdtilde)
+
     # END OF YOUR CODE    #
     #######################
 
@@ -248,13 +253,8 @@ class CrossEntropyModule(object):
 
     ########################
     # PUT YOUR CODE HERE  #
-    
-    # out =np.mean-1 * np.sum(y*np.log(x), axis=1))
-    out =  np.mean(np.sum(y * -1 * np.log(x), axis=1 ))
 
-    
-    #out /= np.shape(x)[0]
-    
+    out = np.mean(np.sum(y * -1 * np.log(x), axis=1 ))
 
     # END OF YOUR CODE    #
     #######################
@@ -278,10 +278,7 @@ class CrossEntropyModule(object):
     ########################
     # PUT YOUR CODE HERE  #
     
-    # dx = (-np.divide(y, x))
     dx = (-np.divide(y, x)) / np.shape(y)[0]
-
-    #dx /= np.shape(y)[0]
 
     # END OF YOUR CODE    #
     #######################

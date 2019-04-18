@@ -26,5 +26,5 @@
 
 # python train_mlp_pytorch.py --optimizer='adam' >> pytorch_results.txt
 
-python train_mlp_pytorch.py --dnn_hidden_units="300, 200, 100, 100, 100, 100" --batch_size=300 --max_steps=4000 --learning_rate=1e-2 >> pytorch_results.txt
+# python train_mlp_pytorch.py --dnn_hidden_units="512, 512, 256, 256, 128, 64" --batch_size=512 --max_steps=4000 --learning_rate=1e-3 --optimizer='adam' >> pytorch_results.txt
 

@@ -80,6 +80,8 @@ class TestLosses(unittest.TestCase):
 
       f = lambda _: CrossEntropyModule().forward(X, y)
       grads_num = eval_numerical_gradient(f, X, verbose = False, h = 1e-5)
+
+      
       self.assertLess(rel_error(grads_num, grads), rel_error_max)
 
 class TestLayers(unittest.TestCase):
@@ -102,7 +104,8 @@ class TestLayers(unittest.TestCase):
       dw = layer.grads['weight']
       dx_num = eval_numerical_gradient_array(lambda xx: layer.forward(xx), x, dout)
       dw_num = eval_numerical_gradient_array(lambda w: layer.forward(x), layer.params['weight'], dout)
-
+      
+      
       self.assertLess(rel_error(dx, dx_num), rel_error_max)
       self.assertLess(rel_error(dw, dw_num), rel_error_max)
 
@@ -121,7 +124,7 @@ class TestLayers(unittest.TestCase):
       out = layer.forward(x)
       dx = layer.backward(dout)
       dx_num = eval_numerical_gradient_array(lambda xx: layer.forward(xx), x, dout)
-
+      
       self.assertLess(rel_error(dx, dx_num), rel_error_max)
   
   def test_softmax_backward(self):
@@ -139,7 +142,7 @@ class TestLayers(unittest.TestCase):
       out = layer.forward(x)
       dx = layer.backward(dout)
       dx_num = eval_numerical_gradient_array(lambda xx: layer.forward(xx), x, dout)
-
+      
       self.assertLess(rel_error(dx, dx_num), rel_error_max)
 
 
