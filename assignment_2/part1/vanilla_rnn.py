@@ -32,20 +32,20 @@ class VanillaRNN(nn.Module):
         super(VanillaRNN, self).__init__()
 
         mu = 0
-        sigma = 0.0001
+        sigma = 1e-3
 
         np.random.seed(42)
 
         # initialize variables
-        self.Whx = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(num_classes, num_hidden))))
+        self.Whx = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(seq_length, num_hidden))))
 
         self.Whh = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(num_hidden, num_hidden))))
 
         self.Wph = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(num_hidden, num_classes))))
 
-        self.bp = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(batch_size, num_classes))))
+        self.bp = nn.Parameter(torch.zeros(size=(batch_size, num_classes))).double()
 
-        self.bh = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(batch_size, num_hidden))))
+        self.bh = nn.Parameter(torch.zeros(size=(batch_size, num_hidden))).double()
 
         self.h = torch.zeros((batch_size, num_hidden))
 

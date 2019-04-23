@@ -77,13 +77,13 @@ def train(config):
     # Initialize the model that we are going to use
     # model = None  # fixme
 
-    SEQ_LENGTH= 5 # fixme
+    SEQ_LENGTH=config.input_length # fixme
     INPUT_DIM=config.input_dim
     NUM_HIDDEN=config.num_hidden
     NUM_CLASSES=config.num_classes
     BATCH_SIZE=config.batch_size
 
-    model = VanillaRNN(seq_length=SEQ_LENGTH,input_dim=INPUT_DIM , num_hidden=NUM_HIDDEN, num_classes=NUM_CLASSES, batch_size=BATCH_SIZE, device='cpu')
+    model = VanillaRNN(seq_length=SEQ_LENGTH,input_dim=INPUT_DIM, num_hidden=NUM_HIDDEN, num_classes=NUM_CLASSES, batch_size=BATCH_SIZE, device='cpu')
 
     # Initialize the dataset and data loader (note the +1)
     dataset = PalindromeDataset(config.input_length+1)
@@ -115,13 +115,16 @@ def train(config):
         out = model.forward(batch_inputs)
         optimizer.zero_grad()
         loss = criterion(out, batch_targets)
-        loss.backward(retain_graph=True)
+        loss.backward(retain_graph=True) #fixme
         torch.nn.utils.clip_grad_norm(model.parameters(), max_norm=config.max_norm)
         optimizer.step()
 
         accuracy = calculate_accuracy(out, batch_targets)
         # loss = np.inf   # fixme
         # accuracy = 0.0  # fixme
+
+
+
 
 
 
@@ -156,7 +159,8 @@ if __name__ == "__main__":
 
     # Model params
     parser.add_argument('--model_type', type=str, default="RNN", help="Model type, should be 'RNN' or 'LSTM'")
-    parser.add_argument('--input_length', type=int, default=10, help='Length of an input sequence')
+    # parser.add_argument('--input_length', type=int, default=10, help='Length of an input sequence')
+    parser.add_argument('--input_length', type=int, default=5, help='Length of an input sequence')
     parser.add_argument('--input_dim', type=int, default=1, help='Dimensionality of input sequence')
     parser.add_argument('--num_classes', type=int, default=10, help='Dimensionality of output sequence')
     parser.add_argument('--num_hidden', type=int, default=128, help='Number of hidden units in the model')
