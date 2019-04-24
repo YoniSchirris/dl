@@ -96,6 +96,8 @@ def train(config):
     # optimizer = None  # fixme
     optimizer = torch.optim.RMSprop(model.parameters())
 
+
+
     for step, (batch_inputs, batch_targets) in enumerate(data_loader):
 
         # Only for time measurement of step through network
@@ -113,19 +115,18 @@ def train(config):
         # Add more code here ...
 
         out = model.forward(batch_inputs)
-        optimizer.zero_grad()
         loss = criterion(out, batch_targets)
-        loss.backward(retain_graph=True) #fixme
+
+
+        loss.backward() #fixme
         torch.nn.utils.clip_grad_norm(model.parameters(), max_norm=config.max_norm)
         optimizer.step()
+        optimizer.zero_grad()
+
 
         accuracy = calculate_accuracy(out, batch_targets)
         # loss = np.inf   # fixme
         # accuracy = 0.0  # fixme
-
-
-
-
 
 
         # Just for time measurement
@@ -159,8 +160,8 @@ if __name__ == "__main__":
 
     # Model params
     parser.add_argument('--model_type', type=str, default="RNN", help="Model type, should be 'RNN' or 'LSTM'")
-    # parser.add_argument('--input_length', type=int, default=10, help='Length of an input sequence')
-    parser.add_argument('--input_length', type=int, default=5, help='Length of an input sequence')
+    parser.add_argument('--input_length', type=int, default=10, help='Length of an input sequence')
+    # parser.add_argument('--input_length', type=int, default=3, help='Length of an input sequence')
     parser.add_argument('--input_dim', type=int, default=1, help='Dimensionality of input sequence')
     parser.add_argument('--num_classes', type=int, default=10, help='Dimensionality of output sequence')
     parser.add_argument('--num_hidden', type=int, default=128, help='Number of hidden units in the model')

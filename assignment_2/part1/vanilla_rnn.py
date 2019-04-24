@@ -32,33 +32,37 @@ class VanillaRNN(nn.Module):
         super(VanillaRNN, self).__init__()
 
         mu = 0
-        sigma = 1e-3
+        sigma = 1e-4
 
         np.random.seed(42)
 
         # initialize variables
-        self.Whx = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(seq_length, num_hidden))))
 
-        self.Whh = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(num_hidden, num_hidden))))
+        # check sizes of every single fucking parameter
+        self.Whx = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(input_dim, 1))))
 
-        self.Wph = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(num_hidden, num_classes))))
+        self.Whh = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(num_hidden, 1))))
 
-        self.bp = nn.Parameter(torch.zeros(size=(batch_size, num_classes))).double()
+        self.Wph = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(num_classes, num_hidden))))
 
-        self.bh = nn.Parameter(torch.zeros(size=(batch_size, num_hidden))).double()
+        self.bp = nn.Parameter(torch.zeros(size=(1, num_classes))).double()
 
-        self.h = torch.zeros((batch_size, num_hidden))
+        self.bh = nn.Parameter(torch.zeros(size=(num_hidden, 1))).double()
+
+        self.h = torch.zeros((num_hidden, 1), requires_grad=False)
 
         self.seq_length = seq_length
 
         self.num_hidden = num_hidden
 
     def forward(self, x):
-        for seq in range(self.seq_length):
-            a = x.double()@self.Whx.double()
-            b = self.h.double()@self.Whh.double()
+        h = self.h
+        for seq_idx in range(self.seq_length):
+            a = self.Whx @ x[:, seq_idx].view(1, -1).double()
+            b = self.Whh.double().t() @ h.double()
             c = self.bh
-            self.h = torch.tanh(a + b + c)
+            h = torch.tanh(a + b + c)
 
-        p = self.h@self.Wph + self.bp
+
+        p = (self.Wph @ h).t() + self.bp #fixme should output be 128*10? can we add same row to every row??
         return p
