@@ -68,7 +68,6 @@ def calculate_accuracy(predictions, targets):
 
 
 def train(config):
-
     assert config.model_type in ('RNN', 'LSTM')
 
     # Initialize the device which to run the model on
@@ -77,16 +76,21 @@ def train(config):
     # Initialize the model that we are going to use
     # model = None  # fixme
 
-    SEQ_LENGTH=config.input_length # fixme
-    INPUT_DIM=config.input_dim
-    NUM_HIDDEN=config.num_hidden
-    NUM_CLASSES=config.num_classes
-    BATCH_SIZE=config.batch_size
+    SEQ_LENGTH = config.input_length  # fixme
+    INPUT_DIM = config.input_dim
+    NUM_HIDDEN = config.num_hidden
+    NUM_CLASSES = config.num_classes
+    BATCH_SIZE = config.batch_size
 
-    model = VanillaRNN(seq_length=SEQ_LENGTH,input_dim=INPUT_DIM, num_hidden=NUM_HIDDEN, num_classes=NUM_CLASSES, batch_size=BATCH_SIZE, device='cpu')
+    if config.model_type == "RNN":
+        model = VanillaRNN(seq_length=SEQ_LENGTH, input_dim=INPUT_DIM, num_hidden=NUM_HIDDEN, num_classes=NUM_CLASSES,
+                       batch_size=BATCH_SIZE, device='cpu')
 
+    elif config.model_type == "LSTM":
+        model = LSTM(seq_length=SEQ_LENGTH, input_dim=INPUT_DIM, num_hidden=NUM_HIDDEN, num_classes=NUM_CLASSES,
+                       batch_size=BATCH_SIZE, device='cpu')
     # Initialize the dataset and data loader (note the +1)
-    dataset = PalindromeDataset(config.input_length+1)
+    dataset = PalindromeDataset(config.input_length + 1)
     data_loader = DataLoader(dataset, config.batch_size, num_workers=1)
 
     # Setup the loss and optimizer
@@ -94,9 +98,8 @@ def train(config):
     criterion = torch.nn.CrossEntropyLoss()
 
     # optimizer = None  # fixme
-    optimizer = torch.optim.RMSprop(model.parameters())
-
-
+    optimizer = torch.optim.RMSprop(model.parameters(), lr=config.learning_rate)
+    # optimizer = torch.optim.SGD(model.parameters(), lr=0.005)
 
     for step, (batch_inputs, batch_targets) in enumerate(data_loader):
 
@@ -113,33 +116,29 @@ def train(config):
         ############################################################################
 
         # Add more code here ...
+        optimizer.zero_grad()
 
         out = model.forward(batch_inputs)
         loss = criterion(out, batch_targets)
 
-
-        loss.backward() #fixme
+        loss.backward()  # fixme
         torch.nn.utils.clip_grad_norm(model.parameters(), max_norm=config.max_norm)
         optimizer.step()
-        optimizer.zero_grad()
-
 
         accuracy = calculate_accuracy(out, batch_targets)
         # loss = np.inf   # fixme
         # accuracy = 0.0  # fixme
 
-
         # Just for time measurement
         t2 = time.time()
-        examples_per_second = config.batch_size/float(t2-t1)
+        examples_per_second = config.batch_size / float(t2 - t1)
 
         if step % 10 == 0:
-
             print("[{}] Train Step {:04d}/{:04d}, Batch Size = {}, Examples/Sec = {:.2f}, "
                   "Accuracy = {:.2f}, Loss = {:.3f}".format(
-                    datetime.now().strftime("%Y-%m-%d %H:%M"), step,
-                    config.train_steps, config.batch_size, examples_per_second,
-                    accuracy, loss
+                datetime.now().strftime("%Y-%m-%d %H:%M"), step,
+                config.train_steps, config.batch_size, examples_per_second,
+                accuracy, loss
             ))
 
         if step == config.train_steps:
@@ -148,10 +147,13 @@ def train(config):
             break
 
     print('Done training.')
+    print('finally accuracy:')
+    print(accuracy)
+    return accuracy
 
 
- ################################################################################
- ################################################################################
+################################################################################
+################################################################################
 
 if __name__ == "__main__":
 
@@ -172,7 +174,21 @@ if __name__ == "__main__":
     parser.add_argument('--max_norm', type=float, default=10.0)
     parser.add_argument('--device', type=str, default="cuda:0", help="Training device 'cpu' or 'cuda:0'")
 
+    parser.add_argument('--experiment', type=str, default="0",
+                        help="A string. Give 1 to run an accuracy experiment after training")
+
     config = parser.parse_args()
 
     # Train the model
-    train(config)
+    config.experiment="1"
+    if config.experiment == "1":
+        experimental_accuracies = []
+        for T in range(5, 20):
+            config.input_length = T
+            experimental_accuracies.append(train(config))
+        print("------------------")
+        print("FINAL ACCURACIES")
+        print(experimental_accuracies)
+        print("------------------")
+    else:
+        train(config)

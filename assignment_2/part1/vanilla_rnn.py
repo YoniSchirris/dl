@@ -39,13 +39,13 @@ class VanillaRNN(nn.Module):
         # initialize variables
 
         # check sizes of every single fucking parameter
-        self.Whx = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(input_dim, 1))))
+        self.Whx = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(num_hidden, input_dim))))
 
-        self.Whh = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(num_hidden, 1))))
+        self.Whh = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(num_hidden, num_hidden))))
 
         self.Wph = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(num_classes, num_hidden))))
 
-        self.bp = nn.Parameter(torch.zeros(size=(1, num_classes))).double()
+        self.bp = nn.Parameter(torch.zeros(size=(num_classes, 1))).double()
 
         self.bh = nn.Parameter(torch.zeros(size=(num_hidden, 1))).double()
 
@@ -53,16 +53,14 @@ class VanillaRNN(nn.Module):
 
         self.seq_length = seq_length
 
-        self.num_hidden = num_hidden
-
     def forward(self, x):
         h = self.h
         for seq_idx in range(self.seq_length):
             a = self.Whx @ x[:, seq_idx].view(1, -1).double()
-            b = self.Whh.double().t() @ h.double()
+            b = self.Whh.double() @ h.double()
             c = self.bh
             h = torch.tanh(a + b + c)
 
 
-        p = (self.Wph @ h).t() + self.bp #fixme should output be 128*10? can we add same row to every row??
-        return p
+        p = (self.Wph @ h) + self.bp
+        return p.t()
