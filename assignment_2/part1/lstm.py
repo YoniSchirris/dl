@@ -27,6 +27,7 @@ import numpy as np
 ################################################################################
 
 class LSTM(nn.Module):
+    #TODO NOTE THAT LR NEEDS TO BE 0.01 FOR THE LSTM TO WORK
 
     def __init__(self, seq_length, input_dim, num_hidden, num_classes, batch_size, device='cpu'):
         super(LSTM, self).__init__()
@@ -40,6 +41,7 @@ class LSTM(nn.Module):
 
         self.sigma = sigma = 0.01
 
+        # I took some inspiration from:
         # https://github.com/keitakurita/Practical_NLP_in_PyTorch/blob/master/deep_dives/lstm_from_scratch.ipynb
         # g
         self.Wgx = nn.Parameter(sigma * torch.randn((input_dim, num_hidden)))
