@@ -95,10 +95,12 @@ def train(config):
     if config.model_type == "RNN":
         model = VanillaRNN(seq_length=SEQ_LENGTH, input_dim=INPUT_DIM, num_hidden=NUM_HIDDEN, num_classes=NUM_CLASSES,
                        batch_size=BATCH_SIZE, device='cpu')
+        optimizer = torch.optim.RMSprop(model.parameters(), lr=config.learning_rate)
 
     elif config.model_type == "LSTM":
         model = LSTM(seq_length=SEQ_LENGTH, input_dim=INPUT_DIM, num_hidden=NUM_HIDDEN, num_classes=NUM_CLASSES,
                        batch_size=BATCH_SIZE, device='cpu')
+        optimizer = torch.optim.RMSprop(model.parameters(), lr=config.learning_rate, momentum=0.8, weight_decay=1e-4)
     # Initialize the dataset and data loader (note the +1)
     dataset = PalindromeDataset(config.input_length + 1)
     data_loader = DataLoader(dataset, config.batch_size, num_workers=1)
@@ -108,7 +110,8 @@ def train(config):
     criterion = torch.nn.CrossEntropyLoss()
 
     # optimizer = None  # fixme
-    optimizer = torch.optim.RMSprop(model.parameters(), lr=config.learning_rate)
+
+
     # optimizer = torch.optim.SGD(model.parameters(), lr=0.005)
 
     for step, (batch_inputs, batch_targets) in enumerate(data_loader):
@@ -135,13 +138,11 @@ def train(config):
         optimizer.zero_grad()
 
 
-        loss.backward()  # fixme
+        loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=config.max_norm)
         optimizer.step()
 
         accuracy = calculate_accuracy(out, batch_targets)
-        # loss = np.inf   # fixme
-        # accuracy = 0.0  # fixme
 
         # Just for time measurement
         t2 = time.time()
@@ -158,6 +159,9 @@ def train(config):
         if step == config.train_steps:
             # If you receive a PyTorch data-loader error, check this bug report:
             # https://github.com/pytorch/pytorch/pull/9655
+            break
+
+        if accuracy == 1:
             break
 
     print('Done training.')
@@ -183,9 +187,10 @@ if __name__ == "__main__":
     parser.add_argument('--num_hidden', type=int, default=128, help='Number of hidden units in the model')
     # parser.add_argument('--batch_size', type=int, default=64, help='Number of examples to process in a batch')
     parser.add_argument('--batch_size', type=int, default=128, help='Number of examples to process in a batch')
-    parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate')
+    # parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate')
+    parser.add_argument('--learning_rate', type=float, default=0.01, help='Learning rate')
     parser.add_argument('--train_steps', type=int, default=10000, help='Number of training steps')
-    parser.add_argument('--max_norm', type=float, default=10.0)
+    parser.add_argument('--max_norm', type=float, default=1.0)
     parser.add_argument('--device', type=str, default="cuda:0", help="Training device 'cpu' or 'cuda:0'")
 
     parser.add_argument('--experiment', type=str, default="0",
@@ -194,10 +199,9 @@ if __name__ == "__main__":
     config = parser.parse_args()
 
     # Train the model
-    config.experiment="1"
     if config.experiment == "1":
         experimental_accuracies = []
-        for T in range(15, 20):
+        for T in range(20, 30):
             config.input_length = T
             experimental_accuracies.append(train(config))
         print("------------------")
