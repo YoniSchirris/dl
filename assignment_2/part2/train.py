@@ -25,72 +25,189 @@ import argparse
 import numpy as np
 
 import torch
+
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
 from part2.dataset import TextDataset
 from part2.model import TextGenerationModel
 
+
 ################################################################################
 
+def calculate_accuracy(predictions, targets):
+    """
+    Computes the prediction accuracy, i.e. the average of correct predictions
+    of the network.
+
+    Args:
+      predictions: 2D float array of size [batch_size, n_classes]
+      labels: 2D int array of size [batch_size, n_classes]
+              with one-hot encoding. Ground truth labels for
+              each sample in the batch
+    Returns:
+      accuracy: scalar float, the accuracy of predictions,
+                i.e. the average correct predictions over the whole batch
+
+    TODO:
+    Implement accuracy computation.
+    """
+
+    ########################
+    # PUT YOUR CODE HERE  #
+
+    max_index_p = predictions.argmax(dim=1)
+    max_index_t = targets
+    accuracy = (max_index_p == max_index_t).float().mean().data.item()
+
+    # END OF YOUR CODE    #
+    #######################
+
+    return accuracy
+
+
 def train(config):
-
     # Initialize the device which to run the model on
-    device = torch.device(config.device)
+    # device = torch.device(config.device)
 
-    # Initialize the model that we are going to use
-    model = TextGenerationModel( ... )  # fixme
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # Initialize the dataset and data loader (note the +1)
-    dataset = TextDataset( ... )  # fixme
+    dataset = TextDataset(filename=config.txt_file, seq_length=config.seq_length)  # fixme
     data_loader = DataLoader(dataset, config.batch_size, num_workers=1)
 
+    VOCAB_SIZE = dataset.vocab_size
+    CHAR2IDX = dataset._char_to_ix
+    IDX2CHAR = dataset._ix_to_char
+
+    # Initialize the model that we are going to use
+    model = TextGenerationModel(batch_size=config.batch_size,
+                                seq_length=config.seq_length,
+                                vocabulary_size=VOCAB_SIZE,  # fixme
+                                lstm_num_hidden=config.lstm_num_hidden,
+                                lstm_num_layers=config.lstm_num_layers,
+                                device=device)
+
+
+    model.to(device)
+
+    # Initialize the dataset and data loader (note the +1)
+
+
+
     # Setup the loss and optimizer
-    criterion = None  # fixme
-    optimizer = None  # fixme
+    criterion = torch.nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
 
-    for step, (batch_inputs, batch_targets) in enumerate(data_loader):
+    # TODO Which optimizer would we want to use?
+    # optimizer = torch.optim.RMSProp(model.parameters(), lr=config.learning_rate)
 
-        # Only for time measurement of step through network
-        t1 = time.time()
+    EPOCHS = 50
 
-        #######################################################
-        # Add more code here ...
-        #######################################################
+    for epoch in range(EPOCHS):
+        # initialization of state that's given to the forward pass
+        # reset every epoch
+        h, c = model.reset_lstm(config.batch_size)
+        h = h.to(device)
+        c = c.to(device)
 
-        loss = np.inf   # fixme
-        accuracy = 0.0  # fixme
+        for step, (batch_inputs, batch_targets) in enumerate(data_loader):
 
-        # Just for time measurement
-        t2 = time.time()
-        examples_per_second = config.batch_size/float(t2-t1)
+            # Only for time measurement of step through network
+            t1 = time.time()
 
-        if step % config.print_every == 0:
+            #######################################################
+            # Add more code here ...
+            #######################################################
 
-            print("[{}] Train Step {:04d}/{:04d}, Batch Size = {}, Examples/Sec = {:.2f}, "
-                  "Accuracy = {:.2f}, Loss = {:.3f}".format(
+            model.train()
+
+            optimizer.zero_grad()
+
+            x = torch.stack(batch_inputs, dim=1).to(device)
+            y = torch.stack(batch_targets, dim=1).to(device)
+
+            y = one_hot_encode(y, VOCAB_SIZE)
+
+            output, (h, c) = model(x=x, prev_state=(h, c))
+
+            loss = criterion(output, y)  # fixme -- might need some dimension fixing
+            accuracy = calculate_accuracy(output, y)  # fixme -- might need some dimension fixing
+
+            h = h.detach()
+            c = c.detach()
+
+            loss.backward()
+
+            # add clipping
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=config.max_norm)
+
+            optimizer.step()
+
+
+            # Just for time measurement
+            t2 = time.time()
+            examples_per_second = config.batch_size / float(t2 - t1)
+
+            if step % config.print_every == 0:
+                print("[{}] Train Step {:04d}/{:04d}, Batch Size = {}, Examples/Sec = {:.2f}, "
+                      "Accuracy = {:.2f}, Loss = {:.3f}".format(
                     datetime.now().strftime("%Y-%m-%d %H:%M"), step,
                     config.train_steps, config.batch_size, examples_per_second,
                     accuracy, loss
-            ))
+                ))
 
-        if step == config.sample_every:
-            # Generate some sentences by sampling from the model
-            pass
+            if step % config.sample_every == 0:
+                FIRST_CHAR = 'I'  # fixme should this be randomized?
+                predict(device, model, FIRST_CHAR, VOCAB_SIZE, IDX2CHAR, CHAR2IDX )
+                # Generate some sentences by sampling from the model
+                torch.save(model.state_dict(),'results/intermediate-model-step-{}.pth'.format(step))
 
-        if step == config.train_steps:
-            # If you receive a PyTorch data-loader error, check this bug report:
-            # https://github.com/pytorch/pytorch/pull/9655
-            break
+            if step == config.train_steps:
+                # If you receive a PyTorch data-loader error, check this bug report:
+                # https://github.com/pytorch/pytorch/pull/9655
+                break
 
     print('Done training.')
 
 
- ################################################################################
- ################################################################################
+def predict(device, model, first_char, vocab_size, idx2char, char2idx, T=30):
+
+    #
+    consider_top_characters = 1
+
+    output = first_char
+    model.eval()
+
+    h, c = model.reset_lstm(1)
+    h = h.to(device)
+    c = c.to(device)
+
+    output_sentence = ''
+
+    for character_num in range(T):
+
+        idx = torch.tensor(char2idx[output]).to(device)
+        output, (h, c) = model(idx, (h, c))
+
+        output_sentence += idx2char[output]
+
+    print(output_sentence)
+
+
+def one_hot_encode(input, vocab_size):
+    input_shape = input.shape
+    encoded_size = list(input_shape)
+    encoded_size.append(vocab_size)
+    output = torch.zeros(encoded_size).to(input.device)
+    output.scatter_(2, input.unsqueeze(-1), 1)
+    return output
+
+
+
+################################################################################
+################################################################################
 
 if __name__ == "__main__":
-
     # Parse training configuration
     parser = argparse.ArgumentParser()
 

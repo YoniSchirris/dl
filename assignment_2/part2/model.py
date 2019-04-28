@@ -17,6 +17,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import torch
 import torch.nn as nn
 
 
@@ -27,7 +28,39 @@ class TextGenerationModel(nn.Module):
 
         super(TextGenerationModel, self).__init__()
         # Initialization here...
+        # I got inspiration from https://machinetalk.org/2019/02/08/text-generation-with-pytorch/
 
-    def forward(self, x):
+        self.batch_size = batch_size
+        self.seq_length = seq_length
+        self.vocabulary_size = vocabulary_size
+        self.lstm_num_hidden = lstm_num_hidden
+        self.lstm_num_layers = lstm_num_layers
+        self.device = device
+
+        self.embedding = nn.Embedding(vocabulary_size, lstm_num_hidden)
+        self.lstm = nn.LSTM(lstm_num_hidden,
+                            lstm_num_layers,
+                            batch_first=True)
+        self.dense = nn.Linear(lstm_num_layers, vocabulary_size)
+
+
+
+    def forward(self, x, prev_state=None):
+
+        if prev_state == None:
+            (h, c) = self.reset_lstm(1)
         # Implementation here...
-        pass
+        embed = self.embedding(x)  # fixme I need to be three-dimensional. one-hot-encoded? stacked?
+        output, state = self.lstm(embed, prev_state)  # fixme embed needs to be three-dimensional: (seq_length, batch, input_size)
+        (h, c) = state
+
+        out = self.dense(output)
+
+        return out, (h, c)
+
+
+    # is this still needed? only neede dif we do more than 1 epoch I think
+    def reset_lstm(self, batch_size):
+        # similar to reset_lstm in part1/lstm.py, but used differently as we're using torch modules here
+        return (torch.zeros(1, batch_size, self.lstm_num_layers),
+                torch.zeros(1, batch_size, self.lstm_num_layers))
