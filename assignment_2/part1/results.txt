@@ -1,0 +1,12 @@
+--- Results for vanilla RNN with standard parameters
+
+range(5,10)         [1.0, 1.0, 1.0, 1.0, 1.0]
+
+range(10,15)        [0.84375, 0.9765625, 1.0, 1.0, 0.9921875]
+
+range(15,20) [0.96875, 0.2421875, 0.0546875, 0.1953125, 0.203125]
+
+
+
+--- Results for LSTM with standard parameters:
+(Fix LSTM Training first)
