@@ -38,31 +38,31 @@ class LSTM(nn.Module):
         self.batch_size = batch_size
         self.device = device
 
-        self.mu = mu = 0
-        self.sigma = sigma = 0.0001
+        self.sigma = sigma = 0.01
 
         # https://github.com/keitakurita/Practical_NLP_in_PyTorch/blob/master/deep_dives/lstm_from_scratch.ipynb
         # g
-        self.Wgx = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(input_dim, num_hidden)))).float()
-        self.Wgh = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(num_hidden, num_hidden)))).float()
+        self.Wgx = nn.Parameter(sigma * torch.randn((input_dim, num_hidden)))
+        self.Wgh = nn.Parameter(sigma * torch.randn((num_hidden, num_hidden)))
         self.bg = nn.Parameter(torch.zeros(num_hidden))
 
+
         # i
-        self.Wix = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(input_dim, num_hidden)))).float()
-        self.Wih = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(num_hidden, num_hidden)))).float()
+        self.Wix = nn.Parameter(sigma * torch.randn((input_dim, num_hidden)))
+        self.Wih = nn.Parameter(sigma * torch.randn((num_hidden, num_hidden)))
         self.bi = nn.Parameter(torch.zeros(num_hidden))
 
         # f
-        self.Wfx = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(input_dim, num_hidden)))).float()
-        self.Wfh = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(num_hidden, num_hidden)))).float()
+        self.Wfx = nn.Parameter(sigma * torch.randn((input_dim, num_hidden)))
+        self.Wfh = nn.Parameter(sigma * torch.randn((num_hidden, num_hidden)))
         self.bf = nn.Parameter(torch.zeros(num_hidden))
         # o
-        self.Wox = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(input_dim, num_hidden)))).float()
-        self.Woh = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(num_hidden, num_hidden)))).float()
+        self.Wox = nn.Parameter(sigma * torch.randn((input_dim, num_hidden)))
+        self.Woh = nn.Parameter(sigma * torch.randn((num_hidden, num_hidden)))
         self.bo = nn.Parameter(torch.zeros(num_hidden))
 
         # linear
-        self.Wph = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(num_hidden, num_classes)))).float()
+        self.Wph = nn.Parameter(sigma * torch.randn((num_hidden, num_classes)))
         self.bp = nn.Parameter(torch.zeros(num_classes))
 
         # hidden and cell
@@ -75,20 +75,20 @@ class LSTM(nn.Module):
 
         # reset all parameters
 
-        for param in self.parameters():
-            # for all weight matrices (as they are 2-dimensional)
-            if param.data.ndimension() >= 2:
-                nn.init.normal(param, self.mu, self.sigma)
-            # for all biases (as they are 1-dimensional)
-            else:
-                nn.init.constant_(param, 0.0)
+        # for param in self.parameters():
+        #     # for all weight matrices (as they are 2-dimensional)
+        #     if param.data.ndimension() >= 2:
+        #         nn.init.normal(param, self.mu, self.sigma)
+        #     # for all biases (as they are 1-dimensional)
+        #     else:
+        #         nn.init.constant_(param, 0.0)
 
-        self.c.detach()
+        self.c.detach_()
 
         # reset cell state to all zeros
         nn.init.constant_(self.c, 0.0)
 
-        self.h.detach()
+        self.h.detach_()
 
         # reset hidden state to all zeros
         nn.init.constant_(self.h, 0.0)
@@ -98,26 +98,17 @@ class LSTM(nn.Module):
 
         self.reset_lstm()
 
-        h_t = self.h
-        c_t = self.c
-
         for t in range(self.seq_length):
-
             x_t = x[:, t].view(self.batch_size, self.input_dim)
-            AA = x_t @ self.Wix.float()
-            BB = h_t @ self.Wih
-            CC = self.bi
-            i_t = torch.sigmoid(x_t @ self.Wix + h_t @ self.Wih + self.bi)
-            f_t = torch.sigmoid(x_t @ self.Wfx + h_t @ self.Wfh + self.bf)
-            g_t = torch.sigmoid(x_t @ self.Wgx + h_t.float() @ self.Wgh + self.bg)
-            o_t = torch.sigmoid(x_t @ self.Wox + h_t @ self.Woh + self.bo)
+            i_t = torch.sigmoid(x_t @ self.Wix + self.h @ self.Wih + self.bi)
+            f_t = torch.sigmoid(x_t @ self.Wfx + self.h @ self.Wfh + self.bf)
+            g_t = torch.tanh(x_t @ self.Wgx + self.h @ self.Wgh + self.bg)
+            o_t = torch.sigmoid(x_t @ self.Wox + self.h @ self.Woh + self.bo)
 
-            c_t = g_t * i_t + c_t * f_t
+            self.c = g_t * i_t + self.c * f_t
 
-            h_t = torch.tanh(c_t) * o_t
+            self.h = torch.tanh(self.c) * o_t
 
-
-
-        p = h_t @ self.Wph + self.bp
+        p = self.h @ self.Wph + self.bp
 
         return p
