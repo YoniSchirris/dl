@@ -30,6 +30,8 @@ from part1.dataset import PalindromeDataset
 from part1.vanilla_rnn import VanillaRNN
 from part1.lstm import LSTM
 
+from torch.autograd import Variable
+
 
 # You may want to look into tensorboardX for logging
 # from tensorboardX import SummaryWriter
@@ -66,6 +68,14 @@ def calculate_accuracy(predictions, targets):
 
     return accuracy
 
+def to_one_hot(y, n_dims=None):
+   """ Take integer y (tensor or variable) with n dims and convert it to 1-hot representation with n+1 dims. """
+   y_tensor = y.data if isinstance(y, Variable) else y
+   y_tensor = y_tensor.type(torch.LongTensor).view(-1, 1)
+   n_dims = n_dims if n_dims is not None else int(torch.max(y_tensor)) + 1
+   y_one_hot = torch.zeros(y_tensor.size()[0], n_dims).scatter_(1, y_tensor, 1)
+   y_one_hot = y_one_hot.view(*y.shape, -1)
+   return Variable(y_one_hot) if isinstance(y, Variable) else y_one_hot
 
 def train(config):
     assert config.model_type in ('RNN', 'LSTM')
@@ -106,6 +116,8 @@ def train(config):
         # Only for time measurement of step through network
         t1 = time.time()
 
+        # batch_inputs = to_one_hot(batch_inputs)
+
         # ----------------------------------------------------
         # Add more code here ...
 
@@ -116,13 +128,15 @@ def train(config):
         ############################################################################
 
         # Add more code here ...
-        optimizer.zero_grad()
 
         out = model.forward(batch_inputs)
         loss = criterion(out, batch_targets)
 
+        optimizer.zero_grad()
+
+
         loss.backward()  # fixme
-        torch.nn.utils.clip_grad_norm(model.parameters(), max_norm=config.max_norm)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=config.max_norm)
         optimizer.step()
 
         accuracy = calculate_accuracy(out, batch_targets)
@@ -183,7 +197,7 @@ if __name__ == "__main__":
     config.experiment="1"
     if config.experiment == "1":
         experimental_accuracies = []
-        for T in range(5, 20):
+        for T in range(15, 20):
             config.input_length = T
             experimental_accuracies.append(train(config))
         print("------------------")
