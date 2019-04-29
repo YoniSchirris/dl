@@ -37,30 +37,33 @@ class TextGenerationModel(nn.Module):
         self.lstm_num_layers = lstm_num_layers
         self.device = device
 
-        self.embedding = nn.Embedding(vocabulary_size, lstm_num_hidden)
-        self.lstm = nn.LSTM(lstm_num_hidden,
-                            lstm_num_layers,
+        # this needed in our case?
+        # self.embedding = nn.Embedding(vocabulary_size, vocabulary_size)
+
+        self.lstm = nn.LSTM(input_size=vocabulary_size,
+                            hidden_size=lstm_num_hidden,
+                            num_layers=lstm_num_layers,
                             batch_first=True)
-        self.dense = nn.Linear(lstm_num_layers, vocabulary_size)
+        self.dense = nn.Linear(lstm_num_hidden, vocabulary_size, bias=True)
 
 
 
     def forward(self, x, prev_state=None):
 
-        if prev_state == None:
-            (h, c) = self.reset_lstm(1)
+        # if prev_state == None:
+        #     (h, c) = self.reset_lstm(1)
         # Implementation here...
-        embed = self.embedding(x)  # fixme I need to be three-dimensional. one-hot-encoded? stacked?
-        output, state = self.lstm(embed, prev_state)  # fixme embed needs to be three-dimensional: (seq_length, batch, input_size)
-        (h, c) = state
+        # embed = self.embedding(x)  # FIXME this required?
+        # embed = embed.view((self.seq_length, self.batch_size, self.vocabulary_size))
+        output, state = self.lstm(x, prev_state)  # fixme embed needs to be three-dimensional: (seq_length, batch, input_size)
 
         out = self.dense(output)
 
-        return out, (h, c)
+        return out, state
 
 
-    # is this still needed? only neede dif we do more than 1 epoch I think
+    # used when doing more than 1 epoch to reset.
     def reset_lstm(self, batch_size):
         # similar to reset_lstm in part1/lstm.py, but used differently as we're using torch modules here
-        return (torch.zeros(1, batch_size, self.lstm_num_layers),
-                torch.zeros(1, batch_size, self.lstm_num_layers))
+        return (torch.zeros(self.lstm_num_layers, batch_size, self.lstm_num_hidden),
+                torch.zeros(self.lstm_num_layers, batch_size, self.lstm_num_hidden))

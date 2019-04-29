@@ -56,7 +56,9 @@ def calculate_accuracy(predictions, targets):
     ########################
     # PUT YOUR CODE HERE  #
 
-    max_index_p = predictions.argmax(dim=1)
+    #TODO FIX ACCURACY CALCULATION
+
+    max_index_p = predictions.argmax(dim=2)
     max_index_t = targets
     accuracy = (max_index_p == max_index_t).float().mean().data.item()
 
@@ -88,14 +90,16 @@ def train(config):
                                 device=device)
 
 
+    if 1:
+        model.load_state_dict(torch.load('./intermediate-model-step-400.pth'))
+        print("Loaded it!")
+
     model.to(device)
-
-    # Initialize the dataset and data loader (note the +1)
-
-
 
     # Setup the loss and optimizer
     criterion = torch.nn.CrossEntropyLoss()
+    #TODO Define the total loss as average of cross-entropy loss over all timesteps (Equation 13).
+
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
 
     # TODO Which optimizer would we want to use?
@@ -115,52 +119,49 @@ def train(config):
             # Only for time measurement of step through network
             t1 = time.time()
 
-            #######################################################
-            # Add more code here ...
-            #######################################################
-
             model.train()
 
             optimizer.zero_grad()
 
             x = torch.stack(batch_inputs, dim=1).to(device)
-            y = torch.stack(batch_targets, dim=1).to(device)
+            y = torch.stack(batch_targets,  dim=1).to(device)
 
-            y = one_hot_encode(y, VOCAB_SIZE)
+            x = one_hot_encode(x, VOCAB_SIZE)
 
             output, (h, c) = model(x=x, prev_state=(h, c))
 
-            loss = criterion(output, y)  # fixme -- might need some dimension fixing
-            accuracy = calculate_accuracy(output, y)  # fixme -- might need some dimension fixing
+            loss = criterion(output.transpose(1, 2), y)  # fixme -- might need some dimension fixing
 
+            accuracy = calculate_accuracy(output, y)  # fixme -- might need some dimension fixing
             h = h.detach()
             c = c.detach()
-
             loss.backward()
-
             # add clipping
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=config.max_norm)
-
             optimizer.step()
-
 
             # Just for time measurement
             t2 = time.time()
             examples_per_second = config.batch_size / float(t2 - t1)
 
             if step % config.print_every == 0:
-                print("[{}] Train Step {:04d}/{:04d}, Batch Size = {}, Examples/Sec = {:.2f}, "
-                      "Accuracy = {:.2f}, Loss = {:.3f}".format(
-                    datetime.now().strftime("%Y-%m-%d %H:%M"), step,
-                    config.train_steps, config.batch_size, examples_per_second,
-                    accuracy, loss
-                ))
+                #TODO FIX THIS PRINTING
+                print(f"Epoch {epoch} Train Step {step}/{config.train_steps}, Examples/Sec = {examples_per_second}, Accuracy = {accuracy}, Loss = {loss}")
+                #
+                # print("[{}]".format(datetime.now().strftime("%Y-%m-%d %H:%M")))
+                # print("[{}] Train Step {:04f}/{:04f}, Batch Size = {}, Examples/Sec = {:.2f}, Accuracy = {:.2f}, Loss = {:.3f}".format(
+                #     datetime.now().strftime("%Y-%m-%d %H:%M"), step, config.train_steps, config.batch_size, examples_per_second, accuracy, loss
+                # ))
+
+                # print(loss)
+
 
             if step % config.sample_every == 0:
                 FIRST_CHAR = 'I'  # fixme should this be randomized?
-                predict(device, model, FIRST_CHAR, VOCAB_SIZE, IDX2CHAR, CHAR2IDX )
+                predict(device, model, FIRST_CHAR, VOCAB_SIZE, IDX2CHAR, CHAR2IDX)
                 # Generate some sentences by sampling from the model
-                torch.save(model.state_dict(),'results/intermediate-model-step-{}.pth'.format(step))
+                path = 'intermediate-model-step-{}.pth'.format(step)
+                torch.save(model.state_dict(),path)
 
             if step == config.train_steps:
                 # If you receive a PyTorch data-loader error, check this bug report:
@@ -170,10 +171,44 @@ def train(config):
     print('Done training.')
 
 
+# def predict(device, model, first_char, vocab_size, idx2char, char2idx, T=30):
+#
+#     #
+#     consider_top_characters = 1
+#
+#     # TODO Should we only check the PREVIOUS character, or ALL previous characters?
+#
+#     output = first_char
+#     model.eval()
+#
+#     h, c = model.reset_lstm(1)
+#     h = h.to(device)
+#     c = c.to(device)
+#
+#     output_sentence = first_char
+#
+#     for character_num in range(T):
+#         # THis currently only checks the last character
+#
+#         idx = torch.tensor(char2idx[output_sentence]).to(device).view(1,1)
+#         one_hot_index = one_hot_encode(idx, vocab_size)
+#         output, (h, c) = model(one_hot_index, (h, c))
+#
+#         output = idx2char[torch.topk(output[0], 1)[1].tolist()[0][0]]
+#
+#         # TODO Add temperature
+#         # output = np.random.choice(torch.topk(output[5], 1)[1].tolist()[0]) << Here we can do something with the temperature
+#
+#         output_sentence += output
+#
+#     print(output_sentence)
+
 def predict(device, model, first_char, vocab_size, idx2char, char2idx, T=30):
 
     #
     consider_top_characters = 1
+
+    # TODO Should we only check the PREVIOUS character, or ALL previous characters?
 
     output = first_char
     model.eval()
@@ -182,23 +217,45 @@ def predict(device, model, first_char, vocab_size, idx2char, char2idx, T=30):
     h = h.to(device)
     c = c.to(device)
 
-    output_sentence = ''
+    first_char = "De"
+
+
+    output_sentence = first_char
+    input_sentence = []
+    for char in output_sentence:
+        input_sentence.append(char2idx[char])
+    # THis currently only checks the last character
+
+    idx = torch.tensor(input_sentence).to(device).view(len(input_sentence), 1)
+    one_hot_index = one_hot_encode(idx, vocab_size)
+    one_hot_index = one_hot_index.view(one_hot_index.size()[1], one_hot_index.size()[0], one_hot_index.size()[2])
+    output, (h, c) = model(one_hot_index, (h, c))
+    output = torch.topk(output[0], 1)[1].tolist()[0][0]
+    output_sentence += idx2char[output]
 
     for character_num in range(T):
 
-        idx = torch.tensor(char2idx[output]).to(device)
-        output, (h, c) = model(idx, (h, c))
+        idx = torch.tensor(output).to(device).view(1, 1)
+        one_hot_index = one_hot_encode(idx, vocab_size)
+        one_hot_index = one_hot_index.view(one_hot_index.size()[1], one_hot_index.size()[0], one_hot_index.size()[2])
+        output, (h, c) = model(one_hot_index, (h, c))
+
+        output = torch.topk(output[0], 1)[1].tolist()[0][0]
+
+        # TODO Add temperature
+        # output = np.random.choice(torch.topk(output[5], 1)[1].tolist()[0]) << Here we can do something with the temperature
 
         output_sentence += idx2char[output]
+
 
     print(output_sentence)
 
 
 def one_hot_encode(input, vocab_size):
-    input_shape = input.shape
-    encoded_size = list(input_shape)
-    encoded_size.append(vocab_size)
-    output = torch.zeros(encoded_size).to(input.device)
+    one_hot_size = list(input.size())
+
+    one_hot_size.append(vocab_size)
+    output = torch.zeros(one_hot_size).to(input.device)
     output.scatter_(2, input.unsqueeze(-1), 1)
     return output
 
