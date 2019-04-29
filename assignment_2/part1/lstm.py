@@ -39,7 +39,7 @@ class LSTM(nn.Module):
         self.batch_size = batch_size
         self.device = device
 
-        self.sigma = sigma = 0.01
+        self.sigma = sigma = 1
 
         # I took some inspiration from:
         # https://github.com/keitakurita/Practical_NLP_in_PyTorch/blob/master/deep_dives/lstm_from_scratch.ipynb

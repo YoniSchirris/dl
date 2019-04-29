@@ -201,7 +201,7 @@ if __name__ == "__main__":
     # Train the model
     if config.experiment == "1":
         experimental_accuracies = []
-        for T in range(20, 30):
+        for T in range(30,100,5):
             config.input_length = T
             experimental_accuracies.append(train(config))
         print("------------------")
