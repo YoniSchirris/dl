@@ -90,17 +90,21 @@ def train(config):
                                 device=device)
 
 
-    if 1:
-        model.load_state_dict(torch.load('./intermediate-model-step-400.pth'))
-        print("Loaded it!")
 
-    model.to(device)
 
     # Setup the loss and optimizer
     criterion = torch.nn.CrossEntropyLoss()
     #TODO Define the total loss as average of cross-entropy loss over all timesteps (Equation 13).
 
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
+
+    if None:
+        model.load_state_dict(torch.load('./intermediate-model-step-400.pth'))
+        optimizer.load_state_dict(torch.load("./intermediate-optim-step-400.pht"))
+
+        print("Loaded it!")
+
+    model.to(device)
 
     # TODO Which optimizer would we want to use?
     # optimizer = torch.optim.RMSProp(model.parameters(), lr=config.learning_rate)
@@ -160,8 +164,10 @@ def train(config):
                 FIRST_CHAR = 'I'  # fixme should this be randomized?
                 predict(device, model, FIRST_CHAR, VOCAB_SIZE, IDX2CHAR, CHAR2IDX)
                 # Generate some sentences by sampling from the model
-                path = 'intermediate-model-step-{}.pth'.format(step)
-                torch.save(model.state_dict(),path)
+                path_model = 'intermediate-model-step-{}.pth'.format(step)
+                path_optimizer = 'intermediate-optim-step-{}.pht'.format(step)
+                torch.save(model.state_dict(),path_model)
+                torch.save(optimizer.state_dict().path_optimizer)
 
             if step == config.train_steps:
                 # If you receive a PyTorch data-loader error, check this bug report:
