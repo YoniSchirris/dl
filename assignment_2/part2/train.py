@@ -100,7 +100,7 @@ def train(config):
 
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
 
-    if True:
+    if False:
         model.load_state_dict(torch.load('./intermediate-model-step-600.pth'))
         optimizer.load_state_dict(torch.load("./intermediate-optim-step-600.pht"))
 
