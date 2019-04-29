@@ -23,6 +23,8 @@ from datetime import datetime
 import argparse
 
 import numpy as np
+import torch.nn.functional as F
+
 
 import torch
 
@@ -98,9 +100,9 @@ def train(config):
 
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
 
-    if None:
-        model.load_state_dict(torch.load('./intermediate-model-step-400.pth'))
-        optimizer.load_state_dict(torch.load("./intermediate-optim-step-400.pht"))
+    if True:
+        model.load_state_dict(torch.load('./intermediate-model-step-600.pth'))
+        optimizer.load_state_dict(torch.load("./intermediate-optim-step-600.pht"))
 
         print("Loaded it!")
 
@@ -167,7 +169,7 @@ def train(config):
                 path_model = 'intermediate-model-step-{}.pth'.format(step)
                 path_optimizer = 'intermediate-optim-step-{}.pht'.format(step)
                 torch.save(model.state_dict(),path_model)
-                torch.save(optimizer.state_dict().path_optimizer)
+                torch.save(optimizer.state_dict(), path_optimizer)
 
             if step == config.train_steps:
                 # If you receive a PyTorch data-loader error, check this bug report:
@@ -239,6 +241,8 @@ def predict(device, model, first_char, vocab_size, idx2char, char2idx, T=30):
     output = torch.topk(output[0], 1)[1].tolist()[0][0]
     output_sentence += idx2char[output]
 
+    TMP=0
+
     for character_num in range(T):
 
         idx = torch.tensor(output).to(device).view(1, 1)
@@ -246,10 +250,18 @@ def predict(device, model, first_char, vocab_size, idx2char, char2idx, T=30):
         one_hot_index = one_hot_index.view(one_hot_index.size()[1], one_hot_index.size()[0], one_hot_index.size()[2])
         output, (h, c) = model(one_hot_index, (h, c))
 
-        output = torch.topk(output[0], 1)[1].tolist()[0][0]
+        if TMP == 0:
+            output = torch.topk(output[0], 1)[1].tolist()[0][0]
+
+        elif TMP > 0:
+            output = F.softmax(output/TMP, dim=2)
+            output = torch.distributions.Categorical(output).sample().tolist()[0][0]
+
+        else:
+            print("Set a TMP > 0")
+            break
 
         # TODO Add temperature
-        # output = np.random.choice(torch.topk(output[5], 1)[1].tolist()[0]) << Here we can do something with the temperature
 
         output_sentence += idx2char[output]
 
