@@ -16,7 +16,8 @@
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-
+import sys
+sys.path.append("..")
 import os
 import time
 from datetime import datetime
@@ -24,6 +25,7 @@ import argparse
 
 import numpy as np
 import torch.nn.functional as F
+import torch.optim.lr_scheduler as scheduler_lib
 
 
 import torch
@@ -99,14 +101,17 @@ def train(config):
     #TODO Define the total loss as average of cross-entropy loss over all timesteps (Equation 13).
 
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
+    scheduler = scheduler_lib.StepLR(optimizer=optimizer,
+                       step_size=config.learning_rate_step,
+                       gamma=config.learning_rate_decay)
 
-    if False:
-        model.load_state_dict(torch.load('./intermediate-model-step-600.pth'))
-        optimizer.load_state_dict(torch.load("./intermediate-optim-step-600.pht"))
+    if True:
+        model.load_state_dict(torch.load('grimm-results/intermediate-model-epoch-30-step-0.pth', map_location='cpu'))
+        optimizer.load_state_dict(torch.load("grimm-results/intermediate-optim-epoch-30-step-0.pth", map_location='cpu'))
 
         print("Loaded it!")
 
-    model.to(device)
+    model = model.to(device)
 
     # TODO Which optimizer would we want to use?
     # optimizer = torch.optim.RMSProp(model.parameters(), lr=config.learning_rate)
@@ -130,6 +135,13 @@ def train(config):
             optimizer.zero_grad()
 
             x = torch.stack(batch_inputs, dim=1).to(device)
+
+            if x.size()[0] != config.batch_size:
+                print("We're breaking because something is wrong")
+                print("Current batch is of size {}".format(x.size()[0]))
+                print("Supposed batch size is {}".format(config.batch_size))
+                break
+
             y = torch.stack(batch_targets,  dim=1).to(device)
 
             x = one_hot_encode(x, VOCAB_SIZE)
@@ -145,6 +157,7 @@ def train(config):
             # add clipping
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=config.max_norm)
             optimizer.step()
+            scheduler.step()
 
             # Just for time measurement
             t2 = time.time()
@@ -166,8 +179,8 @@ def train(config):
                 FIRST_CHAR = 'I'  # fixme should this be randomized?
                 predict(device, model, FIRST_CHAR, VOCAB_SIZE, IDX2CHAR, CHAR2IDX)
                 # Generate some sentences by sampling from the model
-                path_model = 'intermediate-model-step-{}.pth'.format(step)
-                path_optimizer = 'intermediate-optim-step-{}.pht'.format(step)
+                path_model = 'intermediate-model-epoch-{}-step-{}.pth'.format(epoch, step)
+                path_optimizer = 'intermediate-optim-epoch-{}-step-{}.pth'.format(epoch,step)
                 torch.save(model.state_dict(),path_model)
                 torch.save(optimizer.state_dict(), path_optimizer)
 
@@ -225,14 +238,27 @@ def predict(device, model, first_char, vocab_size, idx2char, char2idx, T=30):
     h = h.to(device)
     c = c.to(device)
 
-    first_char = "De"
+    # set for normal experiment
+    # first_char = np.random.choice([i for i in range(vocab_size)])
+    #
+    # first_char = idx2char[first_char]
+    # TMP = 0
+
+
+    # set for TMP experiment
+    # first_char = 'p'
+    # TMP=1
+
+    # set for the bonus question experiment
+    first_char = 'the sleeping beauty is '
+    TMP=0
+    T=100
 
 
     output_sentence = first_char
     input_sentence = []
     for char in output_sentence:
         input_sentence.append(char2idx[char])
-    # THis currently only checks the last character
 
     idx = torch.tensor(input_sentence).to(device).view(len(input_sentence), 1)
     one_hot_index = one_hot_encode(idx, vocab_size)
@@ -241,7 +267,6 @@ def predict(device, model, first_char, vocab_size, idx2char, char2idx, T=30):
     output = torch.topk(output[0], 1)[1].tolist()[0][0]
     output_sentence += idx2char[output]
 
-    TMP=0
 
     for character_num in range(T):
 
@@ -306,7 +331,7 @@ if __name__ == "__main__":
 
     # Misc params
     parser.add_argument('--summary_path', type=str, default="./summaries/", help='Output path for summaries')
-    parser.add_argument('--print_every', type=int, default=5, help='How often to print training progress')
+    parser.add_argument('--print_every', type=int, default=10, help='How often to print training progress')
     parser.add_argument('--sample_every', type=int, default=100, help='How often to sample from the model')
 
     config = parser.parse_args()

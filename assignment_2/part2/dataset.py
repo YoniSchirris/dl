@@ -24,11 +24,17 @@ import torch.utils.data as data
 
 class TextDataset(data.Dataset):
 
+    #TODO ADD https://piazza.com/class/jtrd1f9kqez61u?cid=199
+
     def __init__(self, filename, seq_length):
         assert os.path.splitext(filename)[1] == ".txt"
         self._seq_length = seq_length
-        self._data = open(filename, 'r').read()
+        self._data = open(filename, 'r', encoding='latin-1', errors="surrogateescape").read()
+        self._data = self._data.lower()[3000:-20000]
+
+
         self._chars = list(set(self._data))
+        self._chars.sort()
 
         ## added to be able to take the previous model again
         self._chars.sort()
