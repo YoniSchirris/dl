@@ -34,7 +34,7 @@ class VanillaRNN(nn.Module):
         mu = 0
         sigma = 1e-4
 
-        np.random.seed(42)
+        # np.random.seed(42)
 
         # initialize variables
 

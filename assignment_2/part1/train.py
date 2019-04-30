@@ -81,7 +81,7 @@ def train(config):
     assert config.model_type in ('RNN', 'LSTM')
 
     # Initialize the device which to run the model on
-    device = torch.device(config.device)
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     # Initialize the model that we are going to use
     # model = None  # fixme
@@ -101,6 +101,8 @@ def train(config):
         model = LSTM(seq_length=SEQ_LENGTH, input_dim=INPUT_DIM, num_hidden=NUM_HIDDEN, num_classes=NUM_CLASSES,
                        batch_size=BATCH_SIZE, device='cpu')
         optimizer = torch.optim.RMSprop(model.parameters(), lr=config.learning_rate, momentum=0.8, weight_decay=1e-4)
+
+    model.to(device)
     # Initialize the dataset and data loader (note the +1)
     dataset = PalindromeDataset(config.input_length + 1)
     data_loader = DataLoader(dataset, config.batch_size, num_workers=1)
@@ -118,6 +120,9 @@ def train(config):
 
         # Only for time measurement of step through network
         t1 = time.time()
+
+        batch_inputs = batch_inputs.to(device)
+        batch_targets = batch_targets.to(device)
 
         # batch_inputs = to_one_hot(batch_inputs)
 
@@ -167,7 +172,7 @@ def train(config):
     print('Done training.')
     print('finally accuracy:')
     print(accuracy)
-    return accuracy
+    return accuracy, loss.data.item()
 
 
 ################################################################################
@@ -181,14 +186,13 @@ if __name__ == "__main__":
     # Model params
     parser.add_argument('--model_type', type=str, default="RNN", help="Model type, should be 'RNN' or 'LSTM'")
     parser.add_argument('--input_length', type=int, default=10, help='Length of an input sequence')
-    # parser.add_argument('--input_length', type=int, default=3, help='Length of an input sequence')
     parser.add_argument('--input_dim', type=int, default=1, help='Dimensionality of input sequence')
     parser.add_argument('--num_classes', type=int, default=10, help='Dimensionality of output sequence')
     parser.add_argument('--num_hidden', type=int, default=128, help='Number of hidden units in the model')
-    # parser.add_argument('--batch_size', type=int, default=64, help='Number of examples to process in a batch')
     parser.add_argument('--batch_size', type=int, default=128, help='Number of examples to process in a batch')
-    # parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate')
-    parser.add_argument('--learning_rate', type=float, default=0.01, help='Learning rate')
+    parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate')
+    # use 0.01 for LSTM
+    # parser.add_argument('--learning_rate', type=float, default=0.01, help='Learning rate')
     parser.add_argument('--train_steps', type=int, default=10000, help='Number of training steps')
     parser.add_argument('--max_norm', type=float, default=1.0)
     parser.add_argument('--device', type=str, default="cuda:0", help="Training device 'cpu' or 'cuda:0'")
@@ -199,14 +203,32 @@ if __name__ == "__main__":
     config = parser.parse_args()
 
     # Train the model
-    if config.experiment == "1":
+    if config.experiment == "1.3" or config.experiment == "1.6":
+        print(config)
+        if config.experiment == "1.3":
+            Ts = range(5, 20)
+        if config.experiment == "1.6":
+            Ts = range(5, 100, 5)
         experimental_accuracies = []
-        for T in range(30,100,5):
+        experimental_losses = []
+        for T in Ts:
             config.input_length = T
-            experimental_accuracies.append(train(config))
+            itmdt_acc = []
+            itmdt_loss = []
+            for j in range(5):
+                acc, loss = train(config)
+                itmdt_acc.append(acc)
+                itmdt_loss.append(loss)
+            experimental_accuracies.append(np.mean(itmdt_acc))
+            experimental_losses.append(np.mean(itmdt_loss))
+
         print("------------------")
         print("FINAL ACCURACIES")
         print(experimental_accuracies)
+        print("------------------")
+        print("------------------")
+        print("FINAL LOSSES")
+        print(experimental_losses)
         print("------------------")
     else:
         train(config)
