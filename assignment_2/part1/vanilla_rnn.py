@@ -38,7 +38,6 @@ class VanillaRNN(nn.Module):
 
         # initialize variables
 
-        # check sizes of every single fucking parameter
         self.Whx = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(num_hidden, input_dim)), device=device))
 
         self.Whh = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(num_hidden, num_hidden)), device=device))
@@ -55,8 +54,10 @@ class VanillaRNN(nn.Module):
         self.device = device
 
     def forward(self, x):
+        # implementation of forward as described in the assignment
         h = self.h.to(self.device)
         for seq_idx in range(self.seq_length):
+            # get the input of this sequence of each batch
             a = self.Whx @ x[:, seq_idx].view(1, -1).double()
             a = a.to(self.device)
             b = self.Whh.double() @ h.double()
