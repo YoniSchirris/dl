@@ -59,6 +59,7 @@ def calculate_accuracy(predictions, targets):
     ########################
     # PUT YOUR CODE HERE  #
 
+    # same as assignment 1
     max_index_p = predictions.argmax(dim=1)
     max_index_t = targets
     accuracy = (max_index_p == max_index_t).float().mean().data.item()
@@ -68,30 +69,21 @@ def calculate_accuracy(predictions, targets):
 
     return accuracy
 
-def to_one_hot(y, n_dims=None):
-   """ Take integer y (tensor or variable) with n dims and convert it to 1-hot representation with n+1 dims. """
-   y_tensor = y.data if isinstance(y, Variable) else y
-   y_tensor = y_tensor.type(torch.LongTensor).view(-1, 1)
-   n_dims = n_dims if n_dims is not None else int(torch.max(y_tensor)) + 1
-   y_one_hot = torch.zeros(y_tensor.size()[0], n_dims).scatter_(1, y_tensor, 1)
-   y_one_hot = y_one_hot.view(*y.shape, -1)
-   return Variable(y_one_hot) if isinstance(y, Variable) else y_one_hot
-
 def train(config):
     assert config.model_type in ('RNN', 'LSTM')
 
     # Initialize the device which to run the model on
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    # Initialize the model that we are going to use
-    # model = None  # fixme
 
-    SEQ_LENGTH = config.input_length  # fixme
+    # set the config params to be used here
+    SEQ_LENGTH = config.input_length
     INPUT_DIM = config.input_dim
     NUM_HIDDEN = config.num_hidden
     NUM_CLASSES = config.num_classes
     BATCH_SIZE = config.batch_size
 
+    # Initialize the model that we are going to use
     if config.model_type == "RNN":
         model = VanillaRNN(seq_length=SEQ_LENGTH, input_dim=INPUT_DIM, num_hidden=NUM_HIDDEN, num_classes=NUM_CLASSES,
                        batch_size=BATCH_SIZE, device=device)
@@ -107,15 +99,12 @@ def train(config):
     dataset = PalindromeDataset(config.input_length + 1)
     data_loader = DataLoader(dataset, config.batch_size, num_workers=1)
 
-    # Setup the loss and optimizer
-    # criterion = torch.  # fixme
+    # Setup the loss and optimizer (optimize done above)
     criterion = torch.nn.CrossEntropyLoss()
 
-    # optimizer = None  # fixme
+    # for intermediate reporting and convergence checks
+    intermediate_accuracies = []
 
-
-    # optimizer = torch.optim.SGD(model.parameters(), lr=0.005)
-    intermediate_accuracies=[]
     for step, (batch_inputs, batch_targets) in enumerate(data_loader):
 
         # Only for time measurement of step through network
@@ -124,24 +113,16 @@ def train(config):
         batch_inputs = batch_inputs.to(device)
         batch_targets = batch_targets.to(device)
 
-        # batch_inputs = to_one_hot(batch_inputs)
-
-        # ----------------------------------------------------
-        # Add more code here ...
-
         ############################################################################
         # QUESTION: what happens here and why?
-        # ANSWER: the gradients are clipped /rescaled to a max value, as explaind in slide 50 of lecture 6
+        # ANSWER: the gradients are clipped /rescaled to a max value, as explained in slide 50 of lecture 6
         ############################################################################
         ############################################################################
-
-        # Add more code here ...
 
         out = model.forward(batch_inputs)
         loss = criterion(out, batch_targets)
 
         optimizer.zero_grad()
-
 
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=config.max_norm)
@@ -164,13 +145,11 @@ def train(config):
             ))
 
         if step > 10:
+            # check for convergence: If the last 5 measured accuracies' mean is over .98, we'll say it converges
             if step == config.train_steps or np.mean(intermediate_accuracies[-5:-1]) >= 0.98:
             # If you receive a PyTorch data-loader error, check this bug report:
             # https://github.com/pytorch/pytorch/pull/9655
                 break
-
-       # if accuracy == 1:
-       #     break
 
     print('Done training.')
     print('finally accuracy:')
@@ -194,8 +173,6 @@ if __name__ == "__main__":
     parser.add_argument('--num_hidden', type=int, default=128, help='Number of hidden units in the model')
     parser.add_argument('--batch_size', type=int, default=128, help='Number of examples to process in a batch')
     parser.add_argument('--learning_rate', type=float, default=0.001, help='Learning rate')
-    # use 0.01 for LSTM
-    # parser.add_argument('--learning_rate', type=float, default=0.01, help='Learning rate')
     parser.add_argument('--train_steps', type=int, default=10000, help='Number of training steps')
     parser.add_argument('--max_norm', type=float, default=1.0)
     parser.add_argument('--device', type=str, default="cuda:0", help="Training device 'cpu' or 'cuda:0'")
@@ -205,25 +182,34 @@ if __name__ == "__main__":
 
     config = parser.parse_args()
 
-    # Train the model
+    # Experiments!
     if config.experiment == "1.3" or config.experiment == "1.6":
+        # get the configuration
         print(config)
         if config.experiment == "1.3":
+            # set the range of sequence lengths
             Ts = range(5, 20)
         if config.experiment == "1.6":
             Ts = range(5, 200, 5)
+        # save all results
         experimental_accuracies = []
         experimental_losses = []
         for T in Ts:
+            # for each sequence length
             config.input_length = T
+            # more saving of intermediate intermediate results
             itmdt_acc = []
             itmdt_loss = []
             for j in range(5):
+                # for each sequence length, run it 5 times
                 acc, loss = train(config)
                 itmdt_acc.append(acc)
                 itmdt_loss.append(loss)
+            # and then average this, add it to result list
             experimental_accuracies.append(np.mean(itmdt_acc))
             experimental_losses.append(np.mean(itmdt_loss))
+
+            # intermediate printing
             print("-----")
             print("T = {}".format(T))
             print("Accuracies")
@@ -231,7 +217,7 @@ if __name__ == "__main__":
             print("losses")
             print(experimental_losses)
             print("-----")
-
+        # final printing
         print("------------------")
         print("FINAL ACCURACIES")
         print(experimental_accuracies)
@@ -241,4 +227,5 @@ if __name__ == "__main__":
         print(experimental_losses)
         print("------------------")
     else:
+        # train the model normally
         train(config)
