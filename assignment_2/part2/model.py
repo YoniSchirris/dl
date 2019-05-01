@@ -50,12 +50,7 @@ class TextGenerationModel(nn.Module):
 
     def forward(self, x, prev_state=None):
 
-        # if prev_state == None:
-        #     (h, c) = self.reset_lstm(1)
-        # Implementation here...
-        # embed = self.embedding(x)  # FIXME this required?
-        # embed = embed.view((self.seq_length, self.batch_size, self.vocabulary_size))
-        output, state = self.lstm(x, prev_state)  # fixme embed needs to be three-dimensional: (seq_length, batch, input_size)
+        output, state = self.lstm(x, prev_state)
 
         out = self.dense(output)
 

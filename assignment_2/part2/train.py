@@ -250,9 +250,9 @@ def predict(device, model, first_char, vocab_size, idx2char, char2idx, T=30):
     # TMP=1
 
     # set for the bonus question experiment
-    first_char = 'the sleeping beauty is '
-    TMP=0
-    T=100
+    first_char = 'when the time came for them to set out, the fairy went '
+    TMP=0.01
+    T=300
 
 
     output_sentence = first_char
