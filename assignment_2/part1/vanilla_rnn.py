@@ -39,26 +39,30 @@ class VanillaRNN(nn.Module):
         # initialize variables
 
         # check sizes of every single fucking parameter
-        self.Whx = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(num_hidden, input_dim))))
+        self.Whx = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(num_hidden, input_dim)), device=device))
 
-        self.Whh = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(num_hidden, num_hidden))))
+        self.Whh = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(num_hidden, num_hidden)), device=device))
 
-        self.Wph = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(num_classes, num_hidden))))
+        self.Wph = nn.Parameter(torch.tensor(np.random.normal(mu, sigma, size=(num_classes, num_hidden)), device=device))
 
-        self.bp = nn.Parameter(torch.zeros(size=(num_classes, 1))).double()
+        self.bp = nn.Parameter(torch.zeros(size=(num_classes, 1), device=device)).double()
 
-        self.bh = nn.Parameter(torch.zeros(size=(num_hidden, 1))).double()
+        self.bh = nn.Parameter(torch.zeros(size=(num_hidden, 1), device=device)).double()
 
-        self.h = torch.zeros((num_hidden, 1), requires_grad=False)
+        self.h = torch.zeros((num_hidden, 1), requires_grad=False, device=device)
 
         self.seq_length = seq_length
+        self.device = device
 
     def forward(self, x):
-        h = self.h
+        h = self.h.to(self.device)
         for seq_idx in range(self.seq_length):
             a = self.Whx @ x[:, seq_idx].view(1, -1).double()
+            a = a.to(self.device)
             b = self.Whh.double() @ h.double()
+            b = b.to(self.device)
             c = self.bh
+            c = c.to(self.device)
             h = torch.tanh(a + b + c)
 
 

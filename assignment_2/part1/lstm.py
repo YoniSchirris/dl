@@ -44,28 +44,28 @@ class LSTM(nn.Module):
         # I took some inspiration from:
         # https://github.com/keitakurita/Practical_NLP_in_PyTorch/blob/master/deep_dives/lstm_from_scratch.ipynb
         # g
-        self.Wgx = nn.Parameter(sigma * torch.randn((input_dim, num_hidden)))
-        self.Wgh = nn.Parameter(sigma * torch.randn((num_hidden, num_hidden)))
-        self.bg = nn.Parameter(torch.zeros(num_hidden))
+        self.Wgx = nn.Parameter(sigma * torch.randn((input_dim, num_hidden), device=device))
+        self.Wgh = nn.Parameter(sigma * torch.randn((num_hidden, num_hidden), device=device))
+        self.bg = nn.Parameter(torch.zeros(num_hidden, device=device))
 
 
         # i
-        self.Wix = nn.Parameter(sigma * torch.randn((input_dim, num_hidden)))
-        self.Wih = nn.Parameter(sigma * torch.randn((num_hidden, num_hidden)))
-        self.bi = nn.Parameter(torch.zeros(num_hidden))
+        self.Wix = nn.Parameter(sigma * torch.randn((input_dim, num_hidden), device=device))
+        self.Wih = nn.Parameter(sigma * torch.randn((num_hidden, num_hidden), device=device))
+        self.bi = nn.Parameter(torch.zeros(num_hidden, device=device))
 
         # f
-        self.Wfx = nn.Parameter(sigma * torch.randn((input_dim, num_hidden)))
-        self.Wfh = nn.Parameter(sigma * torch.randn((num_hidden, num_hidden)))
-        self.bf = nn.Parameter(torch.zeros(num_hidden))
+        self.Wfx = nn.Parameter(sigma * torch.randn((input_dim, num_hidden), device=device))
+        self.Wfh = nn.Parameter(sigma * torch.randn((num_hidden, num_hidden), device=device))
+        self.bf = nn.Parameter(torch.zeros(num_hidden, device=device))
         # o
-        self.Wox = nn.Parameter(sigma * torch.randn((input_dim, num_hidden)))
-        self.Woh = nn.Parameter(sigma * torch.randn((num_hidden, num_hidden)))
-        self.bo = nn.Parameter(torch.zeros(num_hidden))
+        self.Wox = nn.Parameter(sigma * torch.randn((input_dim, num_hidden), device=device))
+        self.Woh = nn.Parameter(sigma * torch.randn((num_hidden, num_hidden), device=device))
+        self.bo = nn.Parameter(torch.zeros(num_hidden, device=device))
 
         # linear
-        self.Wph = nn.Parameter(sigma * torch.randn((num_hidden, num_classes)))
-        self.bp = nn.Parameter(torch.zeros(num_classes))
+        self.Wph = nn.Parameter(sigma * torch.randn((num_hidden, num_classes), device=device))
+        self.bp = nn.Parameter(torch.zeros(num_classes, device=device))
 
         # hidden and cell
 

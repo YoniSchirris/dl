@@ -94,12 +94,12 @@ def train(config):
 
     if config.model_type == "RNN":
         model = VanillaRNN(seq_length=SEQ_LENGTH, input_dim=INPUT_DIM, num_hidden=NUM_HIDDEN, num_classes=NUM_CLASSES,
-                       batch_size=BATCH_SIZE, device='cpu')
+                       batch_size=BATCH_SIZE, device=device)
         optimizer = torch.optim.RMSprop(model.parameters(), lr=config.learning_rate)
 
     elif config.model_type == "LSTM":
         model = LSTM(seq_length=SEQ_LENGTH, input_dim=INPUT_DIM, num_hidden=NUM_HIDDEN, num_classes=NUM_CLASSES,
-                       batch_size=BATCH_SIZE, device='cpu')
+                       batch_size=BATCH_SIZE, device=device)
         optimizer = torch.optim.RMSprop(model.parameters(), lr=config.learning_rate, momentum=0.8, weight_decay=1e-4)
 
     model.to(device)
@@ -115,7 +115,7 @@ def train(config):
 
 
     # optimizer = torch.optim.SGD(model.parameters(), lr=0.005)
-
+    intermediate_accuracies=[]
     for step, (batch_inputs, batch_targets) in enumerate(data_loader):
 
         # Only for time measurement of step through network
@@ -149,11 +149,13 @@ def train(config):
 
         accuracy = calculate_accuracy(out, batch_targets)
 
+        intermediate_accuracies.append(accuracy)
+
         # Just for time measurement
         t2 = time.time()
         examples_per_second = config.batch_size / float(t2 - t1)
 
-        if step % 10 == 0:
+        if step % 10000== 0:
             print("[{}] Train Step {:04d}/{:04d}, Batch Size = {}, Examples/Sec = {:.2f}, "
                   "Accuracy = {:.2f}, Loss = {:.3f}".format(
                 datetime.now().strftime("%Y-%m-%d %H:%M"), step,
@@ -161,13 +163,14 @@ def train(config):
                 accuracy, loss
             ))
 
-        if step == config.train_steps:
+        if step > 10:
+            if step == config.train_steps or np.mean(intermediate_accuracies[-5:-1]) >= 0.98:
             # If you receive a PyTorch data-loader error, check this bug report:
             # https://github.com/pytorch/pytorch/pull/9655
-            break
+                break
 
-        if accuracy == 1:
-            break
+       # if accuracy == 1:
+       #     break
 
     print('Done training.')
     print('finally accuracy:')
@@ -208,7 +211,7 @@ if __name__ == "__main__":
         if config.experiment == "1.3":
             Ts = range(5, 20)
         if config.experiment == "1.6":
-            Ts = range(5, 100, 5)
+            Ts = range(5, 200, 5)
         experimental_accuracies = []
         experimental_losses = []
         for T in Ts:
@@ -221,6 +224,13 @@ if __name__ == "__main__":
                 itmdt_loss.append(loss)
             experimental_accuracies.append(np.mean(itmdt_acc))
             experimental_losses.append(np.mean(itmdt_loss))
+            print("-----")
+            print("T = {}".format(T))
+            print("Accuracies")
+            print(experimental_accuracies)
+            print("losses")
+            print(experimental_losses)
+            print("-----")
 
         print("------------------")
         print("FINAL ACCURACIES")
