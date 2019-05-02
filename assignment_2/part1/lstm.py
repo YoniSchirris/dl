@@ -75,15 +75,7 @@ class LSTM(nn.Module):
 
     def reset_lstm(self):
 
-        # reset all parameters
-
-        # for param in self.parameters():
-        #     # for all weight matrices (as they are 2-dimensional)
-        #     if param.data.ndimension() >= 2:
-        #         nn.init.normal(param, self.mu, self.sigma)
-        #     # for all biases (as they are 1-dimensional)
-        #     else:
-        #         nn.init.constant_(param, 0.0)
+        # we reset the cell state and hidden state here
 
         self.c.detach_()
 
