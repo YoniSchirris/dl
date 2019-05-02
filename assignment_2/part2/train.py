@@ -53,14 +53,10 @@ def calculate_accuracy(predictions, targets):
       accuracy: scalar float, the accuracy of predictions,
                 i.e. the average correct predictions over the whole batch
 
-    TODO:
-    Implement accuracy computation.
     """
 
     ########################
     # PUT YOUR CODE HERE  #
-
-    #TODO FIX ACCURACY CALCULATION
 
     max_index_p = predictions.argmax(dim=2)
     max_index_t = targets
@@ -78,7 +74,7 @@ def train(config):
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    dataset = TextDataset(filename=config.txt_file, seq_length=config.seq_length)  # fixme
+    dataset = TextDataset(filename=config.txt_file, seq_length=config.seq_length)
     data_loader = DataLoader(dataset, config.batch_size, num_workers=1)
 
     VOCAB_SIZE = dataset.vocab_size
@@ -88,7 +84,7 @@ def train(config):
     # Initialize the model that we are going to use
     model = TextGenerationModel(batch_size=config.batch_size,
                                 seq_length=config.seq_length,
-                                vocabulary_size=VOCAB_SIZE,  # fixme
+                                vocabulary_size=VOCAB_SIZE,
                                 lstm_num_hidden=config.lstm_num_hidden,
                                 lstm_num_layers=config.lstm_num_layers,
                                 device=device)
@@ -98,7 +94,6 @@ def train(config):
 
     # Setup the loss and optimizer
     criterion = torch.nn.CrossEntropyLoss()
-    #TODO Define the total loss as average of cross-entropy loss over all timesteps (Equation 13).
 
     optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
     scheduler = scheduler_lib.StepLR(optimizer=optimizer,
@@ -112,9 +107,6 @@ def train(config):
         print("Loaded it!")
 
     model = model.to(device)
-
-    # TODO Which optimizer would we want to use?
-    # optimizer = torch.optim.RMSProp(model.parameters(), lr=config.learning_rate)
 
     EPOCHS = 50
 
@@ -148,9 +140,9 @@ def train(config):
 
             output, (h, c) = model(x=x, prev_state=(h, c))
 
-            loss = criterion(output.transpose(1, 2), y)  # fixme -- might need some dimension fixing
+            loss = criterion(output.transpose(1, 2), y)
 
-            accuracy = calculate_accuracy(output, y)  # fixme -- might need some dimension fixing
+            accuracy = calculate_accuracy(output, y)
             h = h.detach()
             c = c.detach()
             loss.backward()
@@ -176,7 +168,7 @@ def train(config):
 
 
             if step % config.sample_every == 0:
-                FIRST_CHAR = 'I'  # fixme should this be randomized?
+                FIRST_CHAR = 'I'  # Is randomized within the prediction, actually
                 predict(device, model, FIRST_CHAR, VOCAB_SIZE, IDX2CHAR, CHAR2IDX)
                 # Generate some sentences by sampling from the model
                 path_model = 'intermediate-model-epoch-{}-step-{}.pth'.format(epoch, step)
@@ -192,44 +184,7 @@ def train(config):
     print('Done training.')
 
 
-# def predict(device, model, first_char, vocab_size, idx2char, char2idx, T=30):
-#
-#     #
-#     consider_top_characters = 1
-#
-#     # TODO Should we only check the PREVIOUS character, or ALL previous characters?
-#
-#     output = first_char
-#     model.eval()
-#
-#     h, c = model.reset_lstm(1)
-#     h = h.to(device)
-#     c = c.to(device)
-#
-#     output_sentence = first_char
-#
-#     for character_num in range(T):
-#         # THis currently only checks the last character
-#
-#         idx = torch.tensor(char2idx[output_sentence]).to(device).view(1,1)
-#         one_hot_index = one_hot_encode(idx, vocab_size)
-#         output, (h, c) = model(one_hot_index, (h, c))
-#
-#         output = idx2char[torch.topk(output[0], 1)[1].tolist()[0][0]]
-#
-#         # TODO Add temperature
-#         # output = np.random.choice(torch.topk(output[5], 1)[1].tolist()[0]) << Here we can do something with the temperature
-#
-#         output_sentence += output
-#
-#     print(output_sentence)
-
 def predict(device, model, first_char, vocab_size, idx2char, char2idx, T=30):
-
-    #
-    consider_top_characters = 1
-
-    # TODO Should we only check the PREVIOUS character, or ALL previous characters?
 
     output = first_char
     model.eval()
@@ -285,8 +240,6 @@ def predict(device, model, first_char, vocab_size, idx2char, char2idx, T=30):
         else:
             print("Set a TMP > 0")
             break
-
-        # TODO Add temperature
 
         output_sentence += idx2char[output]
 
