@@ -1,0 +1,9 @@
+**/**/*.pht
+**/**/*.pth
+assignment_1/*
+.history/
+.idea/
+.vscode/
+assignment_2/**
+cifar10/
+venv/
