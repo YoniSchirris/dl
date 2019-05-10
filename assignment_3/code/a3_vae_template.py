@@ -2,6 +2,9 @@ import argparse
 
 import torch
 import torch.nn as nn
+
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from torchvision.utils import make_grid
 
@@ -13,6 +16,15 @@ class Encoder(nn.Module):
     def __init__(self, hidden_dim=500, z_dim=20):
         super().__init__()
 
+        self.input_dim = 784
+
+        self.feature_learning = nn.Sequential(
+            nn.Linear(self.input_dim, hidden_dim),
+            nn.ReLU()
+        )
+        self.linear_mean = nn.Linear(hidden_dim, z_dim)
+        self.linear_std = nn.Linear(hidden_dim, z_dim)
+
     def forward(self, input):
         """
         Perform forward pass of encoder.
@@ -20,8 +32,11 @@ class Encoder(nn.Module):
         Returns mean and std with shape [batch_size, z_dim]. Make sure
         that any constraints are enforced.
         """
-        mean, std = None, None
-        raise NotImplementedError()
+
+        feature_representation = self.feature_learning(input)
+
+        mean = self.linear_mean(feature_representation)
+        std = self.linear_std(feature_representation)
 
         return mean, std
 
@@ -31,15 +46,22 @@ class Decoder(nn.Module):
     def __init__(self, hidden_dim=500, z_dim=20):
         super().__init__()
 
+        self.out_dim = 784
+
+        self.total = nn.Sequential(
+            nn.Linear(z_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Linear(hidden_dim, self.out_dim)
+        )
+
     def forward(self, input):
         """
         Perform forward pass of encoder.
 
         Returns mean with shape [batch_size, 784].
         """
-        mean = None
-        raise NotImplementedError()
 
+        mean = self.total(input)
         return mean
 
 
@@ -57,8 +79,16 @@ class VAE(nn.Module):
         Given input, perform an encoding and decoding step and return the
         negative average elbo for the given batch.
         """
-        average_negative_elbo = None
-        raise NotImplementedError()
+        mean, std = self.encoder.forward(input)
+
+        #TODO sample epsilon
+        #TODO sample z
+
+
+
+        elbo = self.decoder.forward(z)
+        avg_elbo = elbo.mean(dim=0)
+        average_negative_elbo = - avg_elbo
         return average_negative_elbo
 
     def sample(self, n_samples):
@@ -80,6 +110,20 @@ def epoch_iter(model, data, optimizer):
 
     Returns the average elbo for the complete epoch.
     """
+
+    if model.training:
+        # Do training
+        training_elbos = []
+        for batch in data:
+            batch = batch.resize(batch.size()[0], batch.size(2)*batch.size(3))
+            elbo = model.forward(batch)
+            mean_elbo = elbo.mean(dim=0)
+            training_elbos.append(mean_elbo)
+        x=5
+    else:
+        # Do evaluation
+        y=5
+
     average_epoch_elbo = None
     raise NotImplementedError()
 
@@ -125,11 +169,13 @@ def main():
         val_curve.append(val_elbo)
         print(f"[Epoch {epoch}] train elbo: {train_elbo} val_elbo: {val_elbo}")
 
+        # TODO
         # --------------------------------------------------------------------
         #  Add functionality to plot samples from model during training.
         #  You can use the make_grid functioanlity that is already imported.
         # --------------------------------------------------------------------
 
+    # TODO
     # --------------------------------------------------------------------
     #  Add functionality to plot plot the learned data manifold after
     #  if required (i.e., if zdim == 2). You can use the make_grid
