@@ -117,17 +117,32 @@ def train(dataloader, discriminator, generator, optimizer_G, optimizer_D, device
     stats['D']['loss'] = []
     stats['D']['acc'] = []
 
+    track_time = time.time()
 
     for epoch in range(args.n_epochs):
+        # time tracking of how long en epoch takes
+        print("--------------------")
+        print("\t1 epoch takes {} seconds".format((time.time() - track_time)/1000))
+        print("\tTime to go: {} minutes".format(args.n_epochs-epoch * (time.time() - track_time)/1000/60))
+        print("--------------------")
+        track_time = time.time()
+
         for i, (imgs, _) in enumerate(dataloader):
 
             x = imgs.to(device).reshape(-1, 784)
 
+            # if we're at the end of training and batch size is not nice...
+            # if x.shape[0] != args.batch_size:
+            #     break
+
             # Train Discriminator
             # -------------------
+
+            # TODO how long to train?
             optimizer_D.zero_grad()
 
-            z = torch.randn((args.batch_size, args.latent_dim), device=device)
+            z = torch.randn((x.shape[0], args.latent_dim), device=device)
+            # z = torch.randn((args.batch_size, args.latent_dim), device=device)
 
             Dx = discriminator(x)
             Gz = generator(z)
@@ -142,19 +157,20 @@ def train(dataloader, discriminator, generator, optimizer_G, optimizer_D, device
             # Train Generator
             # ---------------
 
-            for j in range(3):
+            # TODO how long / often to train?
 
-                z = torch.randn((args.batch_size, args.latent_dim), device=device)
+            z = torch.randn((x.shape[0], args.latent_dim), device=device)
+            # z = torch.randn((args.batch_size, args.latent_dim), device=device)
 
-                DGz1 = discriminator(generator(z))
+            DGz1 = discriminator(generator(z))
 
-                G_loss = (-1 * torch.log(DGz1)).mean(dim=0)
+            G_loss = (-1 * torch.log(DGz1)).mean(dim=0)
 
-                optimizer_G.zero_grad()
+            optimizer_G.zero_grad()
 
-                G_loss.backward()
+            G_loss.backward()
 
-                optimizer_G.step()
+            optimizer_G.step()
 
 
 
