@@ -7,6 +7,8 @@ import torchvision.transforms as transforms
 from torchvision.utils import save_image
 from torchvision import datasets
 
+import numpy as np
+
 import time
 
 
@@ -20,14 +22,18 @@ class Generator(nn.Module):
         self.latent_dim = args.latent_dim
 
         self.forward_pass = nn.Sequential(
+            # add 3x dropout
             nn.Linear(self.latent_dim, 128),
             nn.LeakyReLU(0.2),
+            nn.Dropout(0.5),
             nn.Linear(128, 256),
             nn.BatchNorm1d(256),
             nn.LeakyReLU(0.2),
+            nn.Dropout(0.5),
             nn.Linear(256, 512),
             nn.BatchNorm1d(512),
             nn.LeakyReLU(0.2),
+            nn.Dropout(0.5),
             nn.Linear(512, 1024),
             nn.BatchNorm1d(1024),
             nn.LeakyReLU(0.2),
@@ -122,12 +128,20 @@ def train(dataloader, discriminator, generator, optimizer_G, optimizer_D, device
     for epoch in range(args.n_epochs):
         # time tracking of how long en epoch takes
         print("--------------------")
-        print("\t1 epoch takes {} seconds".format((time.time() - track_time)/1000))
-        print("\tTime to go: {} minutes".format(args.n_epochs-epoch * (time.time() - track_time)/1000/60))
+        print("\t1 epoch takes {} seconds".format((time.time() - track_time)))
+        print("\tTime to go: {} minutes".format((args.n_epochs-epoch) * (time.time() - track_time)/60))
+        print("--------------------")
+        print("Generator Accuracy = {}".format(stats['G']['acc']))
+        print("Generator Loss = {}".format(stats['G']['loss']))
+        print("Discriminator Accuracy = {}".format(stats['D']['acc']))
+        print("Discriminator Loss = {}".format(stats['D']['loss']))
         print("--------------------")
         track_time = time.time()
 
         for i, (imgs, _) in enumerate(dataloader):
+
+            if torch.cuda.is_available():
+                torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
             x = imgs.to(device).reshape(-1, 784)
 
@@ -182,28 +196,23 @@ def train(dataloader, discriminator, generator, optimizer_G, optimizer_D, device
             # we would like to plot the losses over time
             # we would like to
 
-            generator_accuracy = (DGz1.mean(dim=0).item(), DGz2.mean(dim=0).item())
+            generator_accuracy = np.mean((DGz1.mean(dim=0).item(), DGz2.mean(dim=0).item()))
             discriminator_accuracy = Dx.mean(dim=0).item()
 
             GL = G_loss.item()
             DL = D_loss.item()
 
-            stats['G']['acc'].append(generator_accuracy)
-            stats['G']['loss'].append(GL)
 
-            stats['D']['acc'].append(discriminator_accuracy)
-            stats['D']['loss'].append(DL)
 
             print_per_steps = 100
             if i % print_per_steps == 0:
-                to_print = "Epoch: {}\tStep: {}\tLoss_D: {}\tLoss_G: {}\tD(x): {}\tD(G(z)): {} / {}".format(
+                to_print = "Epoch: {}\tStep: {}\tLoss_D: {}\tLoss_G: {}\tD(x): {}\tD(G(z)): {}".format(
                     epoch,
                     i,
                     DL,
                     GL,
                     discriminator_accuracy,
-                    generator_accuracy[0],
-                    generator_accuracy[1]
+                    generator_accuracy
                 )
 
                 print(to_print)
@@ -215,18 +224,23 @@ def train(dataloader, discriminator, generator, optimizer_G, optimizer_D, device
                 # You can use the function save_image(Tensor (shape Bx1x28x28),
                 # filename, number of rows, normalize) to save the generated
                 # images, e.g.:
+                stats['G']['acc'].append(generator_accuracy)
+                stats['G']['loss'].append(GL)
+
+                stats['D']['acc'].append(discriminator_accuracy)
+                stats['D']['loss'].append(DL)
                 # TODO Anything to change here?
                 Gz = Gz.reshape(-1, 1, 28, 28)
                 save_image(Gz[:25],
                            'images/{}-{}.png'.format(str(int(time.time())) , batches_done),
                            nrow=5, normalize=True)
+            torch.set_default_tensor_type('torch.FloatTensor')
 
 
 def main(args):
     # check if GPU is available. If not, use CPU
     if torch.cuda.is_available():
         device = torch.device('cuda')
-        torch.set_default_tensor_type('torch.cuda.FloatTensor')
     else:
         device = torch.device('cpu')
 
