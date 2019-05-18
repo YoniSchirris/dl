@@ -30,7 +30,7 @@ def log_prior(x):
     # take log
     # get the following!
 
-    logp = (-x.pow(2) / 2) - torch.log(torch.sqrt(torch.tensor([2*np.pi])))
+    logp = (-x.pow(2) / 2) - torch.log(torch.sqrt(torch.tensor([2*np.pi]).to(DEVICE)))
 
     # to get the probability of the entire datapoint, we need the product of all probabilities
     # or, the sum of all log probabilities, yay computational efficiency
@@ -262,8 +262,12 @@ def epoch_iter(model, data, optimizer):
 
             optimizer.step()
 
-    avg_bpd = - torch.log2(torch.tensor([len(losses) / sum(losses) / 28**2]))
-    print(losses)
+        if i==5:
+            break
+
+    # others calculate this differently..
+
+    avg_bpd = - torch.log2(torch.tensor([len(losses) / sum(losses) / 28**2]).to(DEVICE))
 
     return avg_bpd  # bpd = bits per dimension
 
@@ -307,7 +311,7 @@ def save_images(model, epoch, train_bpd, val_bpd):
         epoch,
         int(train_bpd),
         int(val_bpd)
-    ), grid.detach().numpy().transpose(1,2,0))
+    ), grid.cpu().detach().numpy().transpose(1,2,0))
 
 
 
@@ -325,7 +329,10 @@ def main():
     os.makedirs('images_nfs', exist_ok=True)
 
     train_curve, val_curve = [], []
+
+    epoch_times = []
     for epoch in range(ARGS.epochs):
+        start_time = time.time()
         print("start epoch")
         bpds = run_epoch(model, data, optimizer)
         print("end epoch")
@@ -334,8 +341,17 @@ def main():
         val_bpd = val_bpd.item()
         train_curve.append(train_bpd)
         val_curve.append(val_bpd)
-        print("[Epoch {epoch}] train bpd: {train_bpd} val_bpd: {val_bpd}".format(
-            epoch=epoch, train_bpd=train_bpd, val_bpd=val_bpd))
+        timeofepoch = time.time() - start_time
+        epoch_times.append(timeofepoch)
+        average_epoch_time = np.mean(epoch_times)
+
+        print("[Epoch {epoch}] train bpd: {train_bpd} val_bpd: {val_bpd}. Epoch took {timeofepoch} seconds, approx {minutestogo} minutes to go".format(
+            epoch=epoch, train_bpd=train_bpd, val_bpd=val_bpd,
+            timeofepoch=timeofepoch,
+            minutestogo= ((ARGS.epochs - epoch)*average_epoch_time)/60
+
+
+            ))
 
         # --------------------------------------------------------------------
         #  Add functionality to plot samples from model during training.
