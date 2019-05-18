@@ -2,6 +2,9 @@ import argparse
 
 import torch
 import torch.nn as nn
+import matplotlib
+
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
 import numpy as np
@@ -9,13 +12,31 @@ from datasets.mnist import mnist
 import os
 from torchvision.utils import make_grid
 
+import time
+
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
 
 def log_prior(x):
     """
     Compute the elementwise log probability of a standard Gaussian, i.e.
     N(x | mu=0, sigma=1).
     """
-    raise NotImplementedError
+
+    # TODO check implementation
+
+    # take the formula for the normal distribution
+    # set mu = 0, stdev = 1
+    # take log
+    # get the following!
+
+    logp = (-x.pow(2) / 2) - torch.log(torch.sqrt(torch.tensor([2*np.pi])))
+
+    # to get the probability of the entire datapoint, we need the product of all probabilities
+    # or, the sum of all log probabilities, yay computational efficiency
+
+    logp = torch.sum(logp, dim=1)
+
     return logp
 
 
@@ -23,11 +44,7 @@ def sample_prior(size):
     """
     Sample from a standard Gaussian.
     """
-    raise NotImplementedError
-
-    if torch.cuda.is_available():
-        sample = sample.cuda()
-
+    sample = torch.randn(size, device=DEVICE)
     return sample
 
 
@@ -38,7 +55,7 @@ def get_mask():
             if (i + j) % 2 == 0:
                 mask[i, j] = 1
 
-    mask = mask.reshape(1, 28*28)
+    mask = mask.reshape(1, 28 * 28)
     mask = torch.from_numpy(mask)
 
     return mask
@@ -54,15 +71,30 @@ class Coupling(torch.nn.Module):
 
         # Create shared architecture to generate both the translation and
         # scale variables.
-        # Suggestion: Linear ReLU Linear ReLU Linear.
-        self.nn = torch.nn.Sequential(
-            None
-            )
+
+        # TODO add dimensions -- is this correct?
+        self.shared_arch = torch.nn.Sequential(
+            # Suggestion: Linear ReLU Linear ReLU Linear.
+
+            nn.Linear(c_in, n_hidden),
+            nn.ReLU(),
+            nn.Linear(n_hidden, n_hidden),
+            nn.ReLU()
+        )
+
+        self.t = nn.Linear(n_hidden, c_in)
+
+        self.s = nn.Sequential(
+            nn.Linear(n_hidden, c_in),
+            nn.Tanh()   # As suggested, we add a tanh for the scale
+        )
 
         # The nn should be initialized such that the weights of the last layer
         # is zero, so that its initial transform is identity.
-        self.nn[-1].weight.data.zero_()
-        self.nn[-1].bias.data.zero_()
+        self.t.weight.data.zero_()
+        self.t.bias.data.zero_()
+        self.s[0].weight.data.zero_()
+        self.s[0].bias.data.zero_()
 
     def forward(self, z, ldj, reverse=False):
         # Implement the forward and inverse for an affine coupling layer. Split
@@ -74,12 +106,38 @@ class Coupling(torch.nn.Module):
         # log_scale = tanh(h), where h is the scale-output
         # from the NN.
 
-        if not reverse:
-            raise NotImplementedError
-        else:
-            raise NotImplementedError
+        masked_z = self.mask * z
 
-        return z, ldj
+        features = self.shared_arch(masked_z)
+
+        t_out = self.t(features)
+        s_out = self.s(features)
+
+
+        if not reverse:
+            # following equation (9) from the paper:
+            # masked_z = b*x, z = x,
+            z = masked_z + (1-self.mask)*(z * torch.exp(s_out) + t_out)
+
+            # calculate the log determinant of the jacobian
+
+            # TODO check calculation of ldj
+
+            # determinant of jacobian is exp(sum(mask(s)))
+            # so log determinant jacobian is sum(mask(s))
+            # we keep track of the ldj throughout training
+            #TODO check calculation, shouldn't be 1- right? But it only works this way...
+            ldj = ldj + torch.sum((1-self.mask) * s_out, dim=1)
+
+        else:
+            # plugging the reverse equation from (8) into (9)
+            z = masked_z + (1-self.mask) * ((z - t_out) * torch.exp(-s_out))
+
+            # no need for LDJ tracking during inference time
+            ldj = torch.zeros_like(ldj)
+
+
+        return z, ldj  # ldj = log det Jacobian
 
 
 class Flow(nn.Module):
@@ -93,7 +151,7 @@ class Flow(nn.Module):
 
         for i in range(n_flows):
             self.layers.append(Coupling(c_in=channels, mask=mask))
-            self.layers.append(Coupling(c_in=channels, mask=1-mask))
+            self.layers.append(Coupling(c_in=channels, mask=1 - mask))
 
         self.z_shape = (channels,)
 
@@ -128,13 +186,13 @@ class Model(nn.Module):
             logdet -= np.log(256) * np.prod(z.size()[1:])
 
             # Logit normalize
-            z = z*(1-alpha) + alpha*0.5
-            logdet += torch.sum(-torch.log(z) - torch.log(1-z), dim=1)
-            z = torch.log(z) - torch.log(1-z)
+            z = z * (1 - alpha) + alpha * 0.5
+            logdet += torch.sum(-torch.log(z) - torch.log(1 - z), dim=1)
+            z = torch.log(z) - torch.log(1 - z)
 
         else:
             # Inverse normalize
-            logdet += torch.sum(torch.log(z) + torch.log(1-z), dim=1)
+            logdet += torch.sum(torch.log(z) + torch.log(1 - z), dim=1)
             z = torch.sigmoid(z)
 
             # Multiply by 256.
@@ -155,9 +213,8 @@ class Model(nn.Module):
 
         z, ldj = self.flow(z, ldj)
 
-        # Compute log_pz and log_px per example
-
-        raise NotImplementedError
+        log_pz = log_prior(z)
+        log_px = log_pz + ldj
 
         return log_px
 
@@ -169,7 +226,9 @@ class Model(nn.Module):
         z = sample_prior((n_samples,) + self.flow.z_shape)
         ldj = torch.zeros(z.size(0), device=z.device)
 
-        raise NotImplementedError
+        z, ldj = self.flow(z,ldj, reverse=True)
+
+        z, ldj = self.logit_normalize(z, ldj, reverse=True)
 
         return z
 
@@ -183,9 +242,30 @@ def epoch_iter(model, data, optimizer):
     log_2 likelihood per dimension) averaged over the complete epoch.
     """
 
-    avg_bpd = None
+    losses = []
 
-    return avg_bpd
+    for i, (imgs, _) in enumerate(data):
+        imgs = imgs.to(DEVICE)
+        out = model.forward(imgs)
+
+        loss = - torch.mean(out)
+
+        losses.append(loss.data.item())
+
+        if model.training:
+            optimizer.zero_grad()
+            loss.backward()
+
+            # TODO clip norm required?
+
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
+
+            optimizer.step()
+
+    avg_bpd = - torch.log2(torch.tensor([len(losses) / sum(losses) / 28**2]))
+    print(losses)
+
+    return avg_bpd  # bpd = bits per dimension
 
 
 def run_epoch(model, data, optimizer):
@@ -214,6 +294,24 @@ def save_bpd_plot(train_curve, val_curve, filename):
     plt.savefig(filename)
 
 
+def save_images(model, epoch, train_bpd, val_bpd):
+
+    current_time = str(int(time.time()))
+
+    samples = model.sample(25).reshape(25, 1, 28, 28)
+
+    grid = make_grid(samples, nrow=5, normalize=True)
+
+    plt.imsave("./images_nfs/{}_epoch={}_train={}_val={}.jpg".format(
+        current_time,
+        epoch,
+        int(train_bpd),
+        int(val_bpd)
+    ), grid.detach().numpy().transpose(1,2,0))
+
+
+
+
 def main():
     data = mnist()[:2]  # ignore test split
 
@@ -228,8 +326,12 @@ def main():
 
     train_curve, val_curve = [], []
     for epoch in range(ARGS.epochs):
+        print("start epoch")
         bpds = run_epoch(model, data, optimizer)
+        print("end epoch")
         train_bpd, val_bpd = bpds
+        train_bpd = train_bpd.item()
+        val_bpd = val_bpd.item()
         train_curve.append(train_bpd)
         val_curve.append(val_bpd)
         print("[Epoch {epoch}] train bpd: {train_bpd} val_bpd: {val_bpd}".format(
@@ -240,6 +342,10 @@ def main():
         #  You can use the make_grid functionality that is already imported.
         #  Save grid to images_nfs/
         # --------------------------------------------------------------------
+
+        save_images(model, epoch, train_bpd, val_bpd)
+
+
 
     save_bpd_plot(train_curve, val_curve, 'nfs_bpd.pdf')
 
