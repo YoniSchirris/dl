@@ -16,10 +16,10 @@ import time
 
 
 class Generator(nn.Module):
-    def __init__(self):
+    def __init__(self, latent_dim=100):
         super(Generator, self).__init__()
 
-        self.latent_dim = args.latent_dim
+        self.latent_dim = latent_dim
 
         self.forward_pass = nn.Sequential(
             # add 3x dropout
@@ -281,6 +281,58 @@ def main(args):
     torch.save(generator.state_dict(), str(int(time.time())) + "_mnist_generator.pt")
 
 
+
+def interpolate():
+    generator = Generator()
+    generator.load_state_dict(torch.load('../gan_images/mnist_generator.pt', map_location='cpu'))
+    for i in range(10):
+        a = torch.randn(1,100)
+        print(a)
+        generator.eval()
+        Gz = generator(a)
+        Gz = Gz.reshape(-1, 1, 28, 28)
+        save_image(Gz[:100],
+                   'images/{}-{}.png'.format("check_figs_for_interpolation",i),
+                   nrow=1, normalize=True)
+    one = torch.tensor([1.2564,  0.8414,  0.1255, -0.5333, -0.6871, -0.1747, -0.4613, -0.2510,
+          0.0960,  1.4093, -1.8332, -0.3168, -1.3448,  0.3383,  0.6217,  1.1507,
+         -0.4281, -1.7358, -2.1052, -2.5599,  0.7375, -0.3222, -1.3106,  0.8149,
+          0.5920,  1.2080, -0.1601,  0.0254, -0.1127, -1.2389,  1.0707, -0.6668,
+          0.7448, -1.7727,  0.8835, -0.1735,  0.0457, -0.6953, -0.2177, -0.5276,
+          1.3043, -1.3637,  1.3787, -0.5469, -0.3293, -0.0042,  1.5517,  0.1470,
+         -0.8158,  1.1559, -0.6233, -0.8261,  0.8103,  0.9109,  0.0640,  1.1176,
+         -0.6638,  0.5052,  0.0482,  0.1589, -0.1846, -0.9857,  0.5391, -1.1274,
+          0.1466,  1.1127, -0.0119,  1.9409, -0.8361,  1.7848, -0.2336,  1.5701,
+         -1.4049,  0.6410, -0.3872, -1.1225, -0.3526, -0.4586,  0.8969, -0.6610,
+          0.8864,  1.8571,  2.8588,  0.1514,  0.7104,  1.6074, -0.1879,  0.0432,
+         -1.0296, -0.4899, -0.2852, -0.7578, -0.4325,  0.8677, -0.1438, -0.1566,
+         -0.5723,  0.5766, -0.9390, -0.1232])
+
+    four = torch.tensor([-0.2105, -0.0654, -0.2802,  0.1469, -1.3909, -0.4472,  0.4429, -0.9437,
+          0.6072, -1.8271, -0.4202, -0.3476, -0.8078, -0.5621, -1.6063, -0.2707,
+          0.8154, -1.2030,  0.7389,  0.6329, -0.6455,  1.1768, -0.4836, -1.4237,
+         -0.0642, -0.0297,  0.1303,  0.3108,  0.0700,  0.9920, -0.5220, -0.9031,
+          0.6444, -0.2111, -0.0803, -0.8090,  1.3974,  0.7275, -0.2941,  0.5881,
+          1.3565,  2.6986, -0.4989,  0.7162,  0.4580, -0.2082, -0.2922, -0.0848,
+          0.4112, -1.2816,  1.6787,  0.1645,  0.8400,  0.3280,  0.2643, -1.9202,
+          0.4570, -0.3416,  1.8842, -0.3578,  0.6817, -0.3741,  0.8443, -1.4836,
+         -0.5232, -1.0516, -0.7320,  1.5984,  0.2249,  0.8976, -1.1413,  0.5177,
+          0.3222, -0.6003, -0.1775,  0.9282, -0.1270, -1.3756, -0.6135,  0.0309,
+          1.7447, -2.9688,  1.1458, -0.3751,  0.4037, -0.1922, -0.9678, -0.2509,
+         -0.0566, -0.2371,  0.7322, -0.5133,  0.3741,  0.7375,  0.4940, -3.4541,
+         -0.8005,  0.7474,  1.1390, -0.4337])
+
+    diff = four - one
+    steps = 8
+    step = diff/steps
+    z_interpolation = torch.stack([one + i*step for i in range(steps+1)])
+    gen_interpolation = generator(z_interpolation)
+    gen_interpolation = gen_interpolation.reshape(-1, 1, 28, 28)
+    save_image(gen_interpolation,
+               'images/{}-{}.png'.format("interpolation", "1"),
+               nrow=9, normalize=True
+               )
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--n_epochs', type=int, default=200,
@@ -293,6 +345,11 @@ if __name__ == "__main__":
                         help='dimensionality of the latent space')
     parser.add_argument('--save_interval', type=int, default=500,
                         help='save every SAVE_INTERVAL iterations')
+    parser.add_argument('--interpolate', type=int, default=0,
+                        help='set if you want to run interpolation')
     args = parser.parse_args()
 
-    main(args)
+    if args.interpolate == 1:
+        interpolate()
+    else:
+        main(args)
