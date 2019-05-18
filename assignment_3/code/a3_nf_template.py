@@ -262,12 +262,7 @@ def epoch_iter(model, data, optimizer):
 
             optimizer.step()
 
-        if i==5:
-            break
-
-    # others calculate this differently..
-
-    avg_bpd = - torch.log2(torch.tensor([len(losses) / sum(losses) / 28**2]).to(DEVICE))
+    avg_bpd = sum(losses) / len(losses) / 28**2 / math.log(2)
 
     return avg_bpd  # bpd = bits per dimension
 
@@ -337,8 +332,6 @@ def main():
         bpds = run_epoch(model, data, optimizer)
         print("end epoch")
         train_bpd, val_bpd = bpds
-        train_bpd = train_bpd.item()
-        val_bpd = val_bpd.item()
         train_curve.append(train_bpd)
         val_curve.append(val_bpd)
         timeofepoch = time.time() - start_time
