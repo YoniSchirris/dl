@@ -1,5 +1,4 @@
 import argparse
-
 import torch
 import torch.nn as nn
 import matplotlib
@@ -11,10 +10,10 @@ import numpy as np
 from datasets.mnist import mnist
 import os
 from torchvision.utils import make_grid
-
 import time
+import math
 
-DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')  # set globally
 
 
 def log_prior(x):
@@ -23,20 +22,10 @@ def log_prior(x):
     N(x | mu=0, sigma=1).
     """
 
-    # TODO check implementation
-
-    # take the formula for the normal distribution
-    # set mu = 0, stdev = 1
-    # take log
-    # get the following!
-
-    logp = (-x.pow(2) / 2) - torch.log(torch.sqrt(torch.tensor([2*np.pi]).to(DEVICE)))
-
+    logp = (-x.pow(2) / 2) - torch.log(torch.sqrt(torch.tensor([2 * np.pi]).to(DEVICE)))
     # to get the probability of the entire datapoint, we need the product of all probabilities
     # or, the sum of all log probabilities, yay computational efficiency
-
     logp = torch.sum(logp, dim=1)
-
     return logp
 
 
@@ -44,11 +33,11 @@ def sample_prior(size):
     """
     Sample from a standard Gaussian.
     """
-    sample = torch.randn(size, device=DEVICE)
+    sample = torch.randn(size, device=DEVICE)  # such simplicity
     return sample
 
 
-def get_mask():
+def get_mask():  # implemented by TAs
     mask = np.zeros((28, 28), dtype='float32')
     for i in range(28):
         for j in range(28):
@@ -69,28 +58,24 @@ class Coupling(torch.nn.Module):
         # Assigns mask to self.mask and creates reference for pytorch.
         self.register_buffer('mask', mask)
 
-        # Create shared architecture to generate both the translation and
-        # scale variables.
-
-        # TODO add dimensions -- is this correct?
+        # Create shared architecture to generate both the s and t
         self.shared_arch = torch.nn.Sequential(
-            # Suggestion: Linear ReLU Linear ReLU Linear.
-
             nn.Linear(c_in, n_hidden),
             nn.ReLU(),
             nn.Linear(n_hidden, n_hidden),
             nn.ReLU()
         )
 
-        self.t = nn.Linear(n_hidden, c_in)
+        self.t = nn.Linear(n_hidden, c_in)  # separate linear layer for t
 
-        self.s = nn.Sequential(
+        self.s = nn.Sequential(  # separate linear and tanh for scale
             nn.Linear(n_hidden, c_in),
-            nn.Tanh()   # As suggested, we add a tanh for the scale
+            nn.Tanh()  # As suggested, we add a tanh for the scale
         )
 
         # The nn should be initialized such that the weights of the last layer
         # is zero, so that its initial transform is identity.
+        # slightly changed to work with the above architecture :)
         self.t.weight.data.zero_()
         self.t.bias.data.zero_()
         self.s[0].weight.data.zero_()
@@ -107,40 +92,32 @@ class Coupling(torch.nn.Module):
         # from the NN.
 
         masked_z = self.mask * z
-
         features = self.shared_arch(masked_z)
-
         t_out = self.t(features)
         s_out = self.s(features)
-
 
         if not reverse:
             # following equation (9) from the paper:
             # masked_z = b*x, z = x,
-            z = masked_z + (1-self.mask)*(z * torch.exp(s_out) + t_out)
+            z = masked_z + (1 - self.mask) * (z * torch.exp(s_out) + t_out)
 
             # calculate the log determinant of the jacobian
-
-            # TODO check calculation of ldj
-
             # determinant of jacobian is exp(sum(mask(s)))
             # so log determinant jacobian is sum(mask(s))
             # we keep track of the ldj throughout training
-            #TODO check calculation, shouldn't be 1- right? But it only works this way...
-            ldj = ldj + torch.sum((1-self.mask) * s_out, dim=1)
+            ldj = ldj + torch.sum((1 - self.mask) * s_out, dim=1)
 
         else:
             # plugging the reverse equation from (8) into (9)
-            z = masked_z + (1-self.mask) * ((z - t_out) * torch.exp(-s_out))
+            z = masked_z + (1 - self.mask) * ((z - t_out) * torch.exp(-s_out))
 
             # no need for LDJ tracking during inference time
             ldj = torch.zeros_like(ldj)
 
-
         return z, ldj  # ldj = log det Jacobian
 
 
-class Flow(nn.Module):
+class Flow(nn.Module):  # implemented by TAs
     def __init__(self, shape, n_flows=4):
         super().__init__()
         channels, = shape
@@ -207,14 +184,11 @@ class Model(nn.Module):
         """
         z = input
         ldj = torch.zeros(z.size(0), device=z.device)
-
-        z = self.dequantize(z)
-        z, ldj = self.logit_normalize(z, ldj)
-
-        z, ldj = self.flow(z, ldj)
-
-        log_pz = log_prior(z)
-        log_px = log_pz + ldj
+        z = self.dequantize(z)  # dequantize the discrete data
+        z, ldj = self.logit_normalize(z, ldj)  # and normalize
+        z, ldj = self.flow(z, ldj)  # run it through the entire flow to get a distribution
+        log_pz = log_prior(z)  # calculate the log prior
+        log_px = log_pz + ldj  # calculate the log likelihood of x
 
         return log_px
 
@@ -225,11 +199,8 @@ class Model(nn.Module):
         """
         z = sample_prior((n_samples,) + self.flow.z_shape)
         ldj = torch.zeros(z.size(0), device=z.device)
-
-        z, ldj = self.flow(z,ldj, reverse=True)
-
-        z, ldj = self.logit_normalize(z, ldj, reverse=True)
-
+        z, ldj = self.flow(z, ldj, reverse=True)  # reverse, so FIRST the anti-flow
+        z, ldj = self.logit_normalize(z, ldj, reverse=True)  # THEN the anti-normalization
         return z
 
 
@@ -246,23 +217,19 @@ def epoch_iter(model, data, optimizer):
 
     for i, (imgs, _) in enumerate(data):
         imgs = imgs.to(DEVICE)
-        out = model.forward(imgs)
-
-        loss = - torch.mean(out)
-
+        out = model.forward(imgs)   #  get the output
+        loss = - torch.mean(out)    # calculate loss
         losses.append(loss.data.item())
 
-        if model.training:
+        if model.training:          # only train if in training mode
             optimizer.zero_grad()
             loss.backward()
-
-            # TODO clip norm required?
-
+            # clip norm is required to prevent the gradients from exploding
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=5.0)
-
             optimizer.step()
 
-    avg_bpd = sum(losses) / len(losses) / 28**2 / math.log(2)
+    # calculate bits per dimension. as the loss is already natural log, we divide by log(2)
+    avg_bpd = sum(losses) / len(losses) / 28 ** 2 / math.log(2)
 
     return avg_bpd  # bpd = bits per dimension
 
@@ -294,7 +261,6 @@ def save_bpd_plot(train_curve, val_curve, filename):
 
 
 def save_images(model, epoch, train_bpd, val_bpd):
-
     current_time = str(int(time.time()))
 
     samples = model.sample(25).reshape(25, 1, 28, 28)
@@ -306,9 +272,7 @@ def save_images(model, epoch, train_bpd, val_bpd):
         epoch,
         int(train_bpd),
         int(val_bpd)
-    ), grid.cpu().detach().numpy().transpose(1,2,0))
-
-
+    ), grid.cpu().detach().numpy().transpose(1, 2, 0))
 
 
 def main():
@@ -326,35 +290,26 @@ def main():
     train_curve, val_curve = [], []
 
     epoch_times = []
+    save_images(model, 0, 0, 0)
     for epoch in range(ARGS.epochs):
-        start_time = time.time()
-        print("start epoch")
-        bpds = run_epoch(model, data, optimizer)
-        print("end epoch")
+        start_time = time.time()        # track time to know how long an epoch takes
+        bpds = run_epoch(model, data, optimizer)    # get bpd
         train_bpd, val_bpd = bpds
-        train_curve.append(train_bpd)
+        train_curve.append(train_bpd)       # create beautiful curves
         val_curve.append(val_bpd)
         timeofepoch = time.time() - start_time
         epoch_times.append(timeofepoch)
         average_epoch_time = np.mean(epoch_times)
 
-        print("[Epoch {epoch}] train bpd: {train_bpd} val_bpd: {val_bpd}. Epoch took {timeofepoch} seconds, approx {minutestogo} minutes to go".format(
-            epoch=epoch, train_bpd=train_bpd, val_bpd=val_bpd,
-            timeofepoch=timeofepoch,
-            minutestogo= ((ARGS.epochs - epoch)*average_epoch_time)/60
-
-
+        # track time and performance ------------------------------
+        print(
+            "[Epoch {epoch}] train bpd: {train_bpd} val_bpd: {val_bpd}. Epoch took {timeofepoch} seconds, approx {minutestogo} minutes to go".format(
+                epoch=epoch, train_bpd=train_bpd, val_bpd=val_bpd,
+                timeofepoch=timeofepoch,
+                minutestogo=((ARGS.epochs - epoch) * average_epoch_time) / 60
             ))
-
-        # --------------------------------------------------------------------
-        #  Add functionality to plot samples from model during training.
-        #  You can use the make_grid functionality that is already imported.
-        #  Save grid to images_nfs/
-        # --------------------------------------------------------------------
-
+        # ---------------------------------------------------------
         save_images(model, epoch, train_bpd, val_bpd)
-
-
 
     save_bpd_plot(train_curve, val_curve, 'nfs_bpd.pdf')
 
@@ -363,7 +318,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--epochs', default=40, type=int,
                         help='max number of epochs')
-
     ARGS = parser.parse_args()
 
     main()
