@@ -1,5 +1,8 @@
 **/**/*.pht
+**/**/__pycache__
 **/**/*.pth
+**/**/*.pt
+**/**/*.png
 assignment_1/*
 .history/
 .idea/
